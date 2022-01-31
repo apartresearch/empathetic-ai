@@ -1,0 +1,11 @@
+
+> for(i in 1:nrow(changeLog)) cat(paste(changeLog$change[i], ":", changeLog$nrow[i], "\n"))
+Start : 1418 
+Filter for item type : 1404 
+Filter duplicates : 638 
+Filter reviews : 623 
+Keyword filtering in title and abstract : 231 
+Filter page count above 4 : 200 
+Filter English articles : 196 
+
+> sink()

@@ -1,0 +1,163 @@
+```{r}
+library(tidyverse, ggthemes)
+pacman::p_load(forcats)
+df <- read_csv("21-06-05 test2.csv")
+theme_set(theme_classic())
+```
+
+```{r}
+
+df %>% ggplot() +
+  aes(Citations) +
+  geom_histogram(fill="#2c3e50") +
+  coord_cartesian(expand=F)
+```
+
+```{r}
+df %>% 
+  # mutate(defList = str_split(`Definition implemented`, ', ')) %>% 
+  select(`Definition implemented`, everything()) %>% 
+  separate_rows(`Definition implemented`, sep=", ") %>% 
+  separate_rows(`Domain of empathy`, sep=", ") %>% 
+  separate_rows(`Study design`, sep=", ") %>% 
+  separate_rows(`Measurement method`, sep=", ") %>% 
+  separate_rows(`Embodiment`, sep=", ") %>% 
+  separate_rows(`Studying human's  or robot's response?`, sep=", ") %>% 
+  drop_na(`Study design`) %>% 
+  group_by(Title) %>% 
+  ggplot() +
+  aes(y=fct_rev(fct_infreq(`Definition implemented`)), x=..count.., fill=`Studying human's  or robot's response?`) +
+  geom_bar() +
+  scale_y_discrete() +
+  coord_cartesian(expand=F) +
+  theme_minimal() +
+  labs(y="Definition implemented", x="Count",
+       subtitle="Human (red) or robot (blue) evaluated") +
+  theme(legend.position="none")
+
+```
+
+```{r definition implemented, fig.width=6, fig.height=5}
+df %>% 
+  # mutate(defList = str_split(`Definition implemented`, ', ')) %>% 
+  select(`Definition implemented`, everything()) %>% 
+  separate_rows(`Definition implemented`, sep=", ") %>% 
+  # separate_rows(`Domain of empathy`, sep=", ") %>% 
+  # separate_rows(`Study design`, sep=", ") %>% 
+  # separate_rows(`Measurement method`, sep=", ") %>% 
+  # separate_rows(`Embodiment`, sep=", ") %>% 
+  # separate_rows(`Studying human's  or robot's response?`, sep=", ") %>% 
+  drop_na(`Study design`) %>% 
+  group_by(Title) %>% 
+  ggplot() +
+  aes(y=fct_rev(fct_infreq(`Definition implemented`)), x=..count.., fill=`Studying human's  or robot's response?`) +
+  geom_bar() +
+  ggthemes::scale_fill_gdocs() +
+  coord_cartesian(expand=F) +
+  theme_minimal() +
+  labs(y="Definition implemented", x="Count",
+       title="Definition implemented",
+       subtitle="Human (blue), robot (orange) or both (red) evaluated") +
+  theme(legend.position="none")
+
+```
+
+```{r domain of empathy, fig.width=6, fig.height=4.5}
+df %>% 
+  # mutate(defList = str_split(`Definition implemented`, ', ')) %>% 
+  select(`Definition implemented`, everything()) %>% 
+  # separate_rows(`Definition implemented`, sep=", ") %>% 
+  separate_rows(`Domain of empathy`, sep=", ") %>%
+  # separate_rows(`Study design`, sep=", ") %>% 
+  # separate_rows(`Measurement method`, sep=", ") %>% 
+  # separate_rows(`Embodiment`, sep=", ") %>% 
+  # separate_rows(`Studying human's  or robot's response?`, sep=", ") %>% 
+  drop_na(`Study design`) %>% 
+  group_by(Title) %>% 
+  ggplot() +
+  aes(y=fct_rev(fct_infreq(`Domain of empathy`)), x=..count.., fill=`Studying human's  or robot's response?`) +
+  geom_bar() +
+  ggthemes::scale_fill_gdocs() +
+  coord_cartesian(expand=F) +
+  theme_minimal() +
+  labs(y="Domain of empathy", x="Count",
+       title="Domain of empathy",
+       subtitle="Human (blue), robot (orange) or both (red) evaluated") +
+  theme(legend.position="none")
+
+```
+
+```{r study design}
+df %>% 
+  # mutate(defList = str_split(`Definition implemented`, ', ')) %>% 
+  select(`Definition implemented`, everything()) %>% 
+  # separate_rows(`Definition implemented`, sep=", ") %>% 
+  # separate_rows(`Domain of empathy`, sep=", ") %>% 
+  separate_rows(`Study design`, sep=", ") %>%
+  # separate_rows(`Measurement method`, sep=", ") %>% 
+  # separate_rows(`Embodiment`, sep=", ") %>% 
+  # separate_rows(`Studying human's  or robot's response?`, sep=", ") %>% 
+  drop_na(`Study design`) %>% 
+  group_by(Title) %>% 
+  ggplot() +
+  aes(y=fct_rev(fct_infreq(`Study design`)), x=..count.., fill=`Studying human's  or robot's response?`) +
+  geom_bar() +
+  ggthemes::scale_fill_gdocs() +
+  coord_cartesian(expand=F) +
+  theme_minimal() +
+  labs(y="Study design", x="Count",
+       title="Study design",
+       subtitle="Human (blue), robot (orange) or both (red) evaluated") +
+  theme(legend.position="none")
+
+```
+
+```{r measurement method, fig.width=6, fig.height=5}
+df %>% 
+  # mutate(defList = str_split(`Definition implemented`, ', ')) %>% 
+  select(`Definition implemented`, everything()) %>% 
+  # separate_rows(`Definition implemented`, sep=", ") %>% 
+  # separate_rows(`Domain of empathy`, sep=", ") %>% 
+  # separate_rows(`Study design`, sep=", ") %>% 
+  separate_rows(`Measurement method`, sep=",") %>%
+  mutate(`Measurement method` = str_squish(`Measurement method`)) %>% 
+  # separate_rows(`Embodiment`, sep=", ") %>% 
+  # separate_rows(`Studying human's  or robot's response?`, sep=", ") %>% 
+  drop_na(`Study design`) %>% 
+  group_by(Title) %>% 
+  ggplot() +
+  aes(y=fct_rev(fct_infreq(`Measurement method`)), x=..count.., fill=`Studying human's  or robot's response?`) +
+  geom_bar() +
+  ggthemes::scale_fill_gdocs() +
+  coord_cartesian(expand=F) +
+  theme_minimal() +
+  labs(y="Measurement method", x="Count",
+       title="Measurement method",
+       subtitle="Human (blue), robot (orange) or both (red) evaluated") +
+  theme(legend.position="none")
+
+```
+```{r embodiment, fig.height=6.5, fig.width=6}
+df %>% 
+  # mutate(defList = str_split(`Definition implemented`, ', ')) %>% 
+  select(`Definition implemented`, everything()) %>% 
+  # separate_rows(`Definition implemented`, sep=", ") %>% 
+  # separate_rows(`Domain of empathy`, sep=", ") %>% 
+  # separate_rows(`Study design`, sep=", ") %>% 
+  # separate_rows(`Measurement method`, sep=", ") %>% 
+  separate_rows(`Embodiment`, sep=" / |, | and ") %>%
+  # separate_rows(`Studying human's  or robot's response?`, sep=", ") %>% 
+  drop_na(`Embodiment`) %>%
+  mutate(Embodiment = str_trunc(Embodiment, 23)) %>%
+  group_by(Title) %>% 
+  ggplot() +
+  aes(y=fct_rev(fct_infreq(`Embodiment`)), x=..count..) +
+  geom_bar(fill="#2c3e50") +
+  ggthemes::scale_fill_gdocs() +
+  coord_cartesian(expand=F) +
+  theme_minimal() +
+  labs(y="Embodiment", x="Count",
+       title="Embodiment") +
+  theme(legend.position="none")
+
+```
