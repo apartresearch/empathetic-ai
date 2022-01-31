@@ -774,7 +774,8 @@ plot(graph, vertex.color=membership(c1), vertex.label=NA, layout=igraph::layout_
   text(0.5, 1, "Chatbot", cex=1, adj=c(0,1), srt=-20) +
   text(-0.7, 1.05, "Narrative", cex=1, adj=c(0,1), srt=20) +
   text(-1.27, 0.25, "Education", cex=1, adj=c(0,1)) +
-  text(-1.1, -0.65, "Companion", cex=1, adj=c(0,1), srt=-25)
+  text(-1.1, -0.65, "Companion", cex=1, adj=c(0,1), srt=-25) +
+  text(1, -1.25, "[DRAFT] Add all articles in the end")
 
 dev.off()
 
@@ -802,7 +803,7 @@ df %>%
   mutate(
     main_domain = case_when(
       Domain %in% c("Image emotion classification", "Machine learning") ~ "Machine learning",
-      Domain %in% c("Mirroring", "Abuse study", "Model", "VR", "Cognitive neuroscience", "Perception of robot") ~ "Perception of robot",
+      Domain %in% c("Mirroring", "Abuse study", "Model", "VR", "Cognitive neuroscience", "Perception of robot") ~ "Perception of robots",
       Domain %in% c("Therapy", "Education", "Service", "Health", "Military", "Embodiment", "Chatbot", "Companion robot", "Robot / AI development") ~ "Robot / AI development",
       TRUE ~ "Human-robot interaction"
     )
@@ -873,7 +874,7 @@ p1 <- df %>%
   mutate(
     empathy_domain = as.factor(if_else(is.na(empathy_domain), "Not specified", empathy_domain)),
     approach = as.factor(if_else(is.na(approach), "Not specified", approach)),
-    empathy_domain = (fct_relevel(empathy_domain, c("Embodied cues", "Language", "Face","Social behaviour", "Not specified"))),
+    empathy_domain = (fct_relevel(empathy_domain, c("Embodied cues", "Language", "Facial expression","Social behaviour", "Not specified"))),
     approach = fct_rev(fct_relevel(approach, c("Machine learning", "GOFAI", "Cognitive model", "Prerecorded", "Not specified")))
   ) %>%
   ggplot() +
