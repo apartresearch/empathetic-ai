@@ -940,8 +940,8 @@ p2 <- df %>%
   guides(fill = guide_legend(nrow = 3, byrow = TRUE))
 
 
-ggsave("../figures/3_approach_domain.png", p1, units="px", width=1000, height=1000)
-ggsave("../figures/3_study_definition.png", p2, device="png", units="px", width=1000, height=1000)
+ggsave("../figures/3_approach_domain.png", p1, units="px", width=1000, height=800)
+ggsave("../figures/3_study_definition.png", p2, device="png", units="px", width=1000, height=800)
 ```
 
 
