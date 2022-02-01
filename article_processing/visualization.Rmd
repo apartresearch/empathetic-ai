@@ -941,7 +941,7 @@ p2 <- df %>%
 
 
 ggsave("../figures/3_approach_domain.png", p1, units="px", width=1000, height=800)
-ggsave("../figures/3_study_definition.png", p2, device="png", units="px", width=1000, height=800)
+ggsave("../figures/3_study_definition.png", p2, device="png", units="px", width=1000, height=870)
 ```
 
 
