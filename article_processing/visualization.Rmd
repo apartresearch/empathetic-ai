@@ -774,8 +774,7 @@ plot(graph, vertex.color=membership(c1), vertex.label=NA, layout=igraph::layout_
   text(0.5, 1, "Chatbot", cex=1, adj=c(0,1), srt=-20) +
   text(-0.7, 1.05, "Narrative", cex=1, adj=c(0,1), srt=20) +
   text(-1.27, 0.25, "Education", cex=1, adj=c(0,1)) +
-  text(-1.1, -0.65, "Companion", cex=1, adj=c(0,1), srt=-25) +
-  text(1, -1.25, "[DRAFT] Add all articles in the end")
+  text(-1.1, -0.65, "Companion", cex=1, adj=c(0,1), srt=-25)
 
 dev.off()
 
@@ -803,7 +802,7 @@ df %>%
   mutate(
     main_domain = case_when(
       Domain %in% c("Image emotion classification", "Machine learning") ~ "Machine learning",
-      Domain %in% c("Mirroring", "Abuse study", "Model", "VR", "Cognitive neuroscience", "Perception of robot") ~ "Perception of robots",
+      Domain %in% c("Mirroring", "Abuse study", "Model", "VR", "Cognitive neuroscience", "Perception of robot") ~ "Perception of robot",
       Domain %in% c("Therapy", "Education", "Service", "Health", "Military", "Embodiment", "Chatbot", "Companion robot", "Robot / AI development") ~ "Robot / AI development",
       TRUE ~ "Human-robot interaction"
     )
@@ -874,7 +873,7 @@ p1 <- df %>%
   mutate(
     empathy_domain = as.factor(if_else(is.na(empathy_domain), "Not specified", empathy_domain)),
     approach = as.factor(if_else(is.na(approach), "Not specified", approach)),
-    empathy_domain = (fct_relevel(empathy_domain, c("Embodied cues", "Language", "Facial expression","Social behaviour", "Not specified"))),
+    empathy_domain = (fct_relevel(empathy_domain, c("Embodied cues", "Language", "Face","Social behaviour", "Not specified"))),
     approach = fct_rev(fct_relevel(approach, c("Machine learning", "GOFAI", "Cognitive model", "Prerecorded", "Not specified")))
   ) %>%
   ggplot() +
@@ -940,147 +939,12 @@ p2 <- df %>%
   guides(fill = guide_legend(nrow = 3, byrow = TRUE))
 
 
-ggsave("../figures/3_approach_domain.png", p1, units="px", width=1000, height=800)
-ggsave("../figures/3_study_definition.png", p2, device="png", units="px", width=1000, height=880)
+ggsave("../figures/3_approach_domain.png", p1, units="px", width=1000, height=1000)
+ggsave("../figures/3_study_definition.png", p2, device="png", units="px", width=1000, height=1000)
 ```
 
-## Approach / study design and definition implemented / empathy domain
-```{r}
-df <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1156551034") %>% 
-  drop_na(Domain)
-
-p1 <- df %>% 
-  separate_rows(
-    approach, sep="[+,:/;.]"
-  ) %>% 
-  group_by(approach) %>% 
-  summarise(
-    app_freq = n(),
-    empathy_domain = empathy_domain
-  ) %>% 
-  arrange(desc(app_freq)) %>% 
-  ungroup() %>% 
-  separate_rows(
-    empathy_domain, sep="[+,:/;.]"
-  ) %>% 
-  group_by(approach, empathy_domain) %>% 
-  summarise(
-    emp_freq = n(),
-    app_freq = mean(app_freq)
-  ) %>% 
-  group_by(approach) %>% 
-  mutate(
-    emp_freq = emp_freq / sum(emp_freq) * mean(app_freq)
-  ) %>% 
-  ungroup %>% 
-  mutate(
-    empathy_domain = as.factor(if_else(is.na(empathy_domain), "Not specified", empathy_domain)),
-    approach = as.factor(if_else(is.na(approach), "Not specified", approach)),
-    empathy_domain = (fct_relevel(empathy_domain, c("Embodied cues", "Language", "Facial expression","Social behaviour", "Not specified"))),
-    approach = fct_rev(fct_relevel(approach, c("Machine learning", "GOFAI", "Cognitive model", "Prerecorded", "Not specified")))
-  ) %>%
-  ggplot() +
-  aes(y=approach, fill=empathy_domain, x=emp_freq) +
-  geom_col(color="white") +
-  coord_cartesian(expand=F) +
-  theme_classic() +
-  scale_fill_tableau() +
-  labs(
-    y=NULL,
-    x="Number of papers",
-    fill=NULL
-  ) +
-  theme(legend.position="top",
-        legend.text=element_text(size=8),
-        legend.title=element_text(size=8),
-        legend.key.size=unit(0.4, "cm")) +
-  guides(fill = guide_legend(nrow = 3, byrow = TRUE))
-
-p2 <- df %>% 
-  separate_rows(
-    definition_implemented, sep="[+,:/;.]"
-  ) %>% 
-  group_by(definition_implemented) %>% 
-  summarise(
-    def_freq = n(),
-    study_design = study_design
-  ) %>% 
-  arrange(desc(def_freq)) %>% 
-  ungroup() %>% 
-  separate_rows(
-    study_design, sep="[+,:/;.]"
-  ) %>% 
-  group_by(definition_implemented, study_design) %>% 
-  summarise(
-    stu_freq = n(),
-    def_freq = mean(def_freq)
-  ) %>% 
-  group_by(definition_implemented) %>% 
-  mutate(
-    stu_freq = stu_freq / sum(stu_freq) * mean(def_freq),
-    study_design = as.factor(if_else(is.na(study_design), "Not specified", study_design)),
-    definition_implemented = as.factor(if_else(is.na(definition_implemented), "Not specified", definition_implemented)),
-    definition_implemented = fct_rev(fct_relevel(definition_implemented, c("Emotional empathy", "Social intelligence", "Embodiment","Cognitive empathy", "Imitation", "Not specified"))),
-    study_design = (fct_relevel(study_design, c("Social interaction", "Behaviour modelling", "Machine learning","Game", "Pain", "Not specified")))
-  ) %>% 
-  ungroup() %>% 
-  ggplot() +
-  aes(y=definition_implemented, fill=study_design, x=stu_freq) +
-  geom_col(color="white") +
-  coord_cartesian(expand=F) +
-  theme_classic() +
-  scale_fill_tableau() +
-  labs(
-    y=NULL,
-    x="Number of papers",
-    fill=NULL
-  ) +
-  theme(legend.position="top",
-        legend.text=element_text(size=8),
-        legend.title=element_text(size=8),
-        legend.key.size=unit(0.4, "cm")) +
-  guides(fill = guide_legend(nrow = 3, byrow = TRUE))
 
 
-ggsave("../figures/4_definition_domain.png", p1, units="px", width=1000, height=800)
-ggsave("../figures/4_study_approach.png", p2, device="png", units="px", width=1000, height=880)
-```
 
-## Human and robot studies
-```{r}
-df <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1156551034") %>% 
-  mutate(hr = if_else(str_to_lower(`Studying human's  or robot's response?`) == "r", "Robot", "Human"))
 
-p1 <- df %>% 
-  drop_na(hr) %>% 
-  separate_rows(
-    study_design, sep="[+,:/;.]"
-  ) %>% 
-  group_by(hr, study_design) %>% 
-  summarise(
-    n = n()
-  ) %>% 
-  group_by(study_design) %>% 
-  summarise(
-    n_s = sum(n),
-    n = n,
-    hr = hr
-  ) %>% 
-  ungroup() %>% 
-  mutate(
-    n_s = if_else(is.na(study_design), as.integer(0), n_s),
-    study_design = if_else(is.na(study_design), "Not specified", study_design),
-    study_design = fct_reorder(study_design, n_s)
-  ) %>% 
-  ggplot() +
-  aes(x=n, y=study_design, fill=hr) +
-  geom_col() +
-  labs(y=NULL, x="Number of studies", fill="Study focus") +
-  theme_classic() +
-  coord_cartesian(expand=F, xlim=c(0,50)) + 
-  scale_fill_tableau() +
-  theme(legend.position = c(0.7, 0.4))
-
-ggsave("../figures/5_human_robot.png", p1, units="px", width=1000, height=700)
-```
 
