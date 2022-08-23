@@ -24,7 +24,9 @@ df <- read_csv("../articles/WoS.csv") %>%
   rbind(read_csv("../articles/ACM.csv")) %>% 
   rbind(read_csv("../articles/Xplore.csv")) %>% 
   rbind(read_csv("../articles/WorldCat.csv")) %>%
-  rbind(read_csv("../articles/Scopus.csv"))
+  rbind(read_csv("../articles/Scopus.csv")) %>% 
+  rbind(read_csv("../articles/empAI_query4_LHH.csv"))
+  
 
 changeLog <- c(nrow(df))
 
