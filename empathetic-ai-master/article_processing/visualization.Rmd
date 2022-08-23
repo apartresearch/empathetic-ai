@@ -1,0 +1,950 @@
+  ---
+title: "R Notebook"
+output: html_notebook
+---
+
+# 📦 Load packages and dataset
+
+```{r}
+pacman::p_load(tidyverse, ggplot2, cowplot, googleway, ggrepel, ggspatial, sf, rnaturalearth,gsheet, rrefine, ggthemes, patchwork, viridis, igraph)
+
+theme_eai <- theme_classic() +
+  theme(axis.text.y=element_blank(),
+        panel.grid=element_blank(),
+        axis.title.x=element_text(hjust=-0.15))
+```
+
+```{r}
+df <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1156551034")
+```
+
+
+```{r}
+# Filter for included articles
+incl_df <- df %>% 
+  mutate(`Out-of-scope (0)` = if_else(is.na(`Out-of-scope (0)`) | `Out-of-scope (0)` == 0, 0, 1)) %>% 
+  filter(`Meets inclusion criteria (contains methods/study/model, is not a survey, implements empathetic AI)` == 1 & `Out-of-scope (0)` != 1) 
+
+fil_df <- incl_df %>% 
+  filter(!str_detect(str_to_lower(Approach), "wizard of oz"))
+
+```
+
+## 
+
+## 🌎 Article origins
+
+```{r fig.width=7}
+
+countries <- df %>%
+  mutate(
+    `Country (funding affiliation)` = str_split(`Country (funding affiliation)`, "\\W")
+  ) %>% 
+  unnest(`Country (funding affiliation)`) %>% 
+  select(Country = `Country (funding affiliation)`) %>% 
+  group_by(Country) %>% 
+  summarise(
+    n_count = n()
+  )
+
+world_map <- map_data("world") %>%
+  mutate(Country = region) %>% 
+  inner_join(
+    read_csv("countries_codes_and_coordinates.csv")
+  ) %>% 
+  mutate(Country = `Alpha-2 code`) %>% 
+  right_join(countries)
+
+country_map <- world_map %>% 
+  group_by(Country) %>% 
+  summarise(
+    lat = mean(lat),
+    long = mean(long),
+    group = mean(group),
+    n_count = mean(n_count),
+    code = first(Country),
+    country = first(region)
+  ) %>% 
+  drop_na()
+
+eu <- countries %>% 
+  filter(Country == "EU")
+
+ggplot() +
+  scale_fill_viridis_c(option = "plasma",
+                       trans = "sqrt") +
+  geom_polygon(color = "lightgrey", 
+               fill = "white",
+               size = 0.1,
+               aes(long, lat, group = group),
+               data = map_data("world")) +
+  geom_polygon(color = "black", 
+               size = 0.1,
+               aes(x = long, y = lat, group = group, fill = n_count),
+               data = world_map) +
+  geom_label_repel(color = "black",
+                   fill = alpha(c("white"), 0.5),
+                    data = country_map, 
+                   max.overlaps = 200,
+                    aes(long, lat, label = paste(code, n_count))) +
+  labs(title = "Article origin",
+       subtitle = paste0("Amount of article for each of the ", 
+                         length(unique(country_map$code)), 
+                         " countries represented (EU not shown).\nWhere possible, the funding origin is used. EU funded ",
+                         eu$n_count,
+                         " articles."),
+       x = "Longitude",
+       y = "Latitude") +
+    annotation_north_arrow(location = "bl", which_north = "true", 
+        pad_x = unit(0.5, "in"), pad_y = unit(0.8, "in"),
+        style = north_arrow_fancy_orienteering) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  scale_fill_viridis()
+
+```
+
+# Experiments
+## Cleaning
+
+Removing all wack characters from colnames and lowercasing it.
+```{r}
+colnames(fil_df) <- colnames(fil_df) %>%
+  str_replace_all("'|\"", "") %>% 
+  str_replace_all("\\W", "_") %>%
+  str_replace_all("_+", "_") %>% 
+  str_replace_all("^_|_$", "") %>% 
+  str_to_lower()
+
+```
+
+
+## Using
+
+```{r}
+# Alright, so I'm just going to free-speech here. We can probably run some pretty cool correlations, such as if they co-occur. Let's actually just model that:
+
+df <- read_csv("refined.csv") %>% 
+  inner_join(gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=332528351") %>% rename(title=Title), by="title")
+
+Expand <- function(df, col1, col2) {
+  col1 <- eval(parse(text=col1))
+  col2 <- eval(parse(text=col2))
+  df %>% 
+    separate_rows(col1, sep = ";|/|;|,|:|·") %>% 
+    mutate(col1 = str_trim(str_to_lower(col1))) %>% 
+    separate_rows(col2, sep = ";|/|;|,|:|·") %>% 
+    mutate(col2 = str_trim(str_to_lower(col2))) %>% 
+    mutate(across(where(is.character), as.factor)) %>% 
+    drop_na(col1) %>% 
+    filter(col1 != "NA" & col2 != "NA")
+}
+```
+
+
+```{r}
+df  %>%
+  separate_rows(field_s, sep = ";|/|;|,|:|·") %>%
+  mutate(field_s = str_trim(str_to_lower(field_s))) %>%
+  separate_rows(embodiment, sep = ";|/|;|,|:|·") %>%
+  mutate(embodiment = str_trim(str_to_lower(embodiment))) %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  drop_na(field_s) %>%
+  filter(field_s != "NA" & embodiment != "NA") %>%
+  group_by(field_s, embodiment) %>%
+  summarise(freq = n()) %>%
+  arrange(desc(freq)) %>%
+  filter(field_s!="") %>% 
+  head(30) %>%
+  ggplot() +
+  aes(freq, field_s, fill = embodiment) +
+  geom_col() +
+  theme_minimal() +
+  scale_fill_stata() +
+  geom_text(aes(label=field_s,
+                x=0), 
+            hjust=0,
+            nudge_y=0.05,
+            nudge_x=0.05,
+            color="black") +
+  labs(y=NULL,
+       x="Occurences",
+       title=paste0("Co-occurrence of tags and embodiment"),
+       fill="Embodiment") +
+  theme(legend.position=c(0.875, 0.5),
+        axis.text.y=element_blank()) +
+  xlim(0, 25) +
+  coord_cartesian(expand=F) +
+  scale_fill_viridis_d()
+
+```
+```{r fig.height=5, fig.width=7.5}
+
+p_labels <- df %>%
+  separate_rows(field_s, sep = ";|/|;|,|:|·") %>%
+  mutate(field_s = str_trim(str_to_lower(field_s))) %>%
+  mutate(field_s = case_when(
+    field_s == "social robots" | 
+      field_s == "social robotics" |
+      field_s == "social robot" |
+      field_s == "robots" ~ 
+        "social robots + social robotics + robots",
+    field_s == "human robot interaction"  ~ "human-robot interaction",
+    field_s == "affective computing" |
+      field_s == "affective ai" ~ "affective computing/AI + artificial empathy",
+    field_s == "educational robot" |
+      field_s == "education" ~ "educational robot + education",
+    field_s == "robot" ~ "robotics",
+    T ~ field_s
+  )) %>% 
+  mutate(field_s = str_to_title(field_s)) %>% 
+  mutate(field_s = if_else(field_s == "Affective Computing/Ai + Artificial Empathy",
+                           "Affective Computing/AI + Artificial Empathy",
+                           field_s)) %>% 
+  drop_na(field_s) %>%
+  filter(field_s != "NA") %>%
+  group_by(field_s) %>%
+  summarise(freq = n()) %>%
+  filter(field_s != "") %>%
+  mutate(field_s = fct_reorder(field_s, freq)) %>% 
+  arrange(desc(freq)) %>% 
+  head(10) %>% 
+  ggplot() +
+  aes(freq, field_s) +
+  geom_col(width=0.9, fill=viridis(20)[20]) +
+  labs(y=NULL,
+       x="Occurrences",
+       title="Article labels") +
+  coord_cartesian(expand=F,
+                  xlim=c(0,39)) +
+  geom_text(aes(label=paste0(field_s, " (", freq, ")"),
+                x=0), 
+            hjust=0,
+            nudge_y=0.05,
+            nudge_x=0.5,
+            color="black") +
+  theme_eai +
+  theme(plot.margin = margin(r=2))
+  
+p_study_designs <- df %>%
+  separate_rows(study_design, sep = ";|/|;|,|:|·") %>%
+  mutate(study_design = str_trim(str_to_lower(study_design))) %>%
+  separate_rows(embodiment, sep = ";|/|;|,|:|·") %>%
+  mutate(embodiment = str_trim(str_to_lower(embodiment))) %>%
+  # mutate(across(where(is.character), as.factor)) %>%
+  mutate(study_design = str_to_title(study_design)) %>% 
+  drop_na(study_design) %>%
+  filter(study_design != "NA" & embodiment != "NA") %>%
+  group_by(study_design) %>%
+  summarise(freq = n()) %>%
+  # arrange(desc(freq)) %>% 
+  mutate(study_design = fct_reorder(study_design, freq)) %>% 
+  # mutate(freq = reorder(freq, )) %>% 
+  filter(study_design != "") %>%
+  arrange(desc(freq)) %>% 
+  head(10) %>% 
+  # head(30) %>%
+  ggplot() +
+  aes(freq, study_design) +
+  geom_col(fill=viridis(20)[20], width=0.9) +
+  labs(y=NULL,
+       x="Occurrences",
+       title="Study designs") +
+  coord_cartesian(expand=F,
+                  xlim=c(0,45)) +
+  geom_text(aes(label=paste0(study_design, " (", freq, ")"),
+                x=0), 
+            hjust=0,
+            nudge_y=0.05,
+            nudge_x=0.5,
+            color="black") +
+  theme_eai
+
+p_labels | p_study_designs
+
+```
+
+```{r}
+df %>%
+  separate_rows(study_design, sep = ";|/|;|,|:|·") %>%
+  mutate(study_design = str_trim(str_to_lower(study_design))) %>%
+  separate_rows(embodiment, sep = ";|/|;|,|:|·") %>%
+  mutate(embodiment = str_trim(str_to_lower(embodiment))) %>%
+  mutate(embodiment = case_when(
+    embodiment == "nao robot" |
+    embodiment == "conbe robot" |
+    embodiment == "cozmo robot" |
+    embodiment == "heathbot" |
+    embodiment == "hexapod robot" |
+    embodiment == "nico robot" |
+    embodiment == "pepper robot" |
+    embodiment == "rasa robot"|
+    embodiment == "nao"|
+    embodiment == "emys robot"|
+    embodiment == "hexbug nano"|
+    embodiment == "robin robot"|
+    embodiment == "eva robot"
+      ~ "nao / conbe / cozmo / heath / \nhexapod / nico / pepper / rasa / \nrobin / emys / eva / hexbug robot",
+    T ~ embodiment
+  )) %>% 
+  group_by(study_design) %>% 
+  summarise(design_freq = n(),
+            embodiment = embodiment) %>% 
+  group_by(embodiment) %>% 
+  summarise(embod_freq = n(),
+            study_design = study_design,
+            design_freq = design_freq) %>% 
+  drop_na() %>% 
+  mutate(embodiment = if_else(embod_freq < 3,
+                              "Other",
+                              embodiment),
+         study_design = if_else(design_freq < 3,
+                                "Other",
+                                study_design)) %>% 
+  mutate(
+    study_design = str_to_title(study_design),
+    embodiment = str_to_title(embodiment)
+  ) %>% 
+  mutate(study_design = fct_reorder(study_design, design_freq),
+         embodiment = fct_reorder(embodiment, embod_freq)) %>% 
+  group_by(study_design) %>% 
+  summarise(design_freq,
+            embod_freq,
+            embodiment,
+            embod_freq_tot = sum(embod_freq)) %>% 
+  arrange(desc(design_freq)) %>%
+  # head(30) %>%
+  ggplot() +
+  aes(design_freq, reorder(study_design, design_freq, sum), fill = embodiment) +
+  geom_col() +
+  theme_minimal() +
+  scale_fill_stata() +
+  geom_text(aes(fill=NA, label=paste0(study_design, " (", embod_freq_tot, ")"),
+                x=0), 
+            hjust=0,
+            nudge_y=0.05,
+            nudge_x=0.5,
+            color="black") +
+  labs(y=NULL,
+       x="Occurences",
+       title=paste0("Co-occurrence of study design and embodiment"),
+       fill="Embodiment") +
+  theme(legend.position=c(0.75, 0.5),
+        axis.text.y=element_blank()) +
+  coord_cartesian(expand=F, clip="off", xlim=c(0,320)) +
+  scale_fill_viridis_d() +
+  theme(legend.background = element_rect(fill="#FFFFFF33"),
+        panel.grid = element_blank())
+
+df %>%
+  separate_rows(study_design, sep = ";|/|;|,|:|·") %>%
+  mutate(study_design = str_trim(str_to_lower(study_design))) %>%
+  separate_rows(embodiment, sep = ";|/|;|,|:|·") %>%
+  mutate(embodiment = str_trim(str_to_lower(embodiment))) %>%
+  mutate(embodiment = case_when(
+    embodiment == "nao robot" |
+    embodiment == "conbe robot" |
+    embodiment == "cozmo robot" |
+    embodiment == "heathbot" |
+    embodiment == "hexapod robot" |
+    embodiment == "nico robot" |
+    embodiment == "pepper robot" |
+    embodiment == "rasa robot"|
+    embodiment == "nao"|
+    embodiment == "emys robot"|
+    embodiment == "hexbug nano"|
+    embodiment == "robin robot"|
+    embodiment == "eva robot"
+      ~ "nao / conbe / cozmo / heath / \nhexapod / nico / pepper / rasa / \nrobin / emys / eva / hexbug robot",
+    T ~ embodiment
+  )) %>% 
+  select(embodiment, study_design) %>% 
+  mutate(embodiment = forcats::fct_infreq(embodiment),
+         study_design = forcats::fct_infreq(study_design)) %>% 
+  filter(as.integer(embodiment) < 11 | as.integer(study_design) < 11) %>% 
+  ggplot() +
+  aes(y=embodiment, fill=study_design) +
+  geom_bar(stat="count", position = position_stack(reverse=TRUE)) +
+  scale_y_discrete(limits=rev)
+
+df  %>%
+  separate_rows(study_design, sep = ";|/|;|,|:|·") %>%
+  mutate(study_design = str_trim(str_to_lower(study_design))) %>%
+  separate_rows(embodiment, sep = ";|/|;|,|:|·") %>%
+  mutate(embodiment = str_trim(str_to_lower(embodiment))) %>%
+  select(embodiment, study_design) %>%
+  mutate(
+    embodiment = forcats::fct_infreq(embodiment),
+    study_design = forcats::fct_infreq(study_design)
+  ) %>%
+  filter(as.integer(embodiment) < 11) %>%
+  mutate(study_design = forcats::fct_explicit_na(
+    if_else(
+      as.integer(study_design) < 10,
+      study_design,
+      factor("Other")
+    ),
+    na_level = "Other"
+  )) %>%
+  mutate(
+    study_design = str_to_title(study_design),
+    embodiment = str_to_title(embodiment)
+  ) %>%
+  mutate(study_design = forcats::fct_relevel(study_design, "Other", after = Inf)) %>%
+  group_by(embodiment) %>%
+  summarise(n = n(),
+            study_design) %>%
+  group_by(embodiment, study_design) %>%
+  summarise(n,
+            n_sin = n()) %>%
+  ggplot() +
+  aes(y = reorder(embodiment,-n), fill = study_design) +
+  geom_bar(aes(x = stat(count)), alpha = 0.9) +
+  scale_y_discrete(limits = rev) +
+  scale_fill_viridis_d() +
+  labs(fill = "Study Design",
+       y = NULL,
+       title = "Study design and empathy embodiment") +
+  geom_text(
+    aes(
+      label = paste0(embodiment, " (", n, ")"),
+      x = 0
+    ),
+    hjust = 0,
+    nudge_y = 0.05,
+    nudge_x = 0.5,
+    color = "black"
+  ) +
+  theme_eai +
+  theme(legend.position = c(0.7, 0.475)) +
+  coord_cartesian(expand = F) +
+  guides(fill=guide_legend(ncol=2))
+
+```
+```{r}
+# df  %>%
+#   separate_rows(studying_humans_or_robots_response , sep = ";|/|;|,|:|·") %>%
+#   mutate(studying_humans_or_robots_response = str_trim(str_to_lower(studying_humans_or_robots_response))) %>%
+#   separate_rows(measurement_method, sep = ";|/|;|,|:|·") %>%
+#   mutate(measurement_method = str_trim(str_to_lower(measurement_method))) %>%
+#   mutate(across(where(is.character), as.factor)) %>%
+#   drop_na(measurement_method) %>%
+#   filter(studying_humans_or_robots_response != "NA" & measurement_method != "NA") %>%
+#   group_by(measurement_method, studying_humans_or_robots_response) %>%
+#   summarise(freq = n()) %>%
+#   arrange(desc(freq)) %>%
+#   filter(measurement_method!="") %>% 
+#   head(20) %>%
+#   ggplot() +
+#   aes(freq, measurement_method, fill = studying_humans_or_robots_response) +
+#   geom_col() +
+#   theme_minimal() +
+#   scale_fill_manual(values = c("#00AFBB", "#E7B800", "#FC4E07")) +
+#   geom_text(aes(label=measurement_method,
+#                 x=0), 
+#             hjust=0,
+#             nudge_y=0.05,
+#             nudge_x=0.05,
+#             color="black") +
+#   labs(y=NULL,
+#        x="Occurences",
+#        title=paste0("Measurement methods used for humans and robots"),
+#        fill="Studying humans or robots") +
+#   theme(legend.position=c(0.7, 0.3),
+#         axis.text.y=element_blank()) +
+#   xlim(0, 40) +
+#   coord_cartesian(expand=F)
+
+
+hr_method <- df %>%
+  separate_rows(studying_humans_or_robots_response , sep = ";|/|;|,|:|·") %>%
+  mutate(studying_humans_or_robots_response = str_trim(str_to_lower(studying_humans_or_robots_response))) %>%
+  separate_rows(measurement_method, sep = ";|/|;|,|:|·") %>%
+  mutate(measurement_method = str_trim(str_to_lower(measurement_method))) %>%
+  select(studying_humans_or_robots_response, measurement_method) %>%
+  group_by(studying_humans_or_robots_response, measurement_method) %>%
+  summarise(count = n()) %>%
+  drop_na() %>%
+  arrange(desc(count)) %>%
+  group_by(studying_humans_or_robots_response) %>%
+  mutate(measurement_method = str_to_title(measurement_method))
+
+
+p1 <- hr_method %>%
+  filter(studying_humans_or_robots_response == "h") %>%
+  head(10) %>%
+  ggplot() +
+  aes(count, reorder(measurement_method, count)) +
+  geom_col(fill = viridis(20)[20], width = 0.9) +
+  labs(y = NULL,
+       x = "",
+       title = "Humans") +
+  coord_cartesian(expand = F,
+                  xlim = c(0, 45)) +
+  geom_text(
+    aes(
+      label = paste0(measurement_method, " (", count, ")"),
+      x = 0
+    ),
+    hjust = 0,
+    nudge_y = 0.05,
+    nudge_x = 0.5,
+    color = "black"
+  ) +
+  theme_eai
+
+p2 <- hr_method %>%
+  filter(studying_humans_or_robots_response == "r") %>%
+  head(10) %>%
+  ggplot() +
+  aes(count, reorder(measurement_method, count)) +
+  geom_col(fill = viridis(20)[20], width = 0.9) +
+  labs(y = NULL,
+       x = "Occurrences",
+       title = "Robots") +
+  coord_cartesian(expand = F,
+                  xlim = c(0, 45)) +
+  geom_text(
+    aes(
+      label = paste0(measurement_method, " (", count, ")"),
+      x = 0
+    ),
+    hjust = 0,
+    nudge_y = 0.05,
+    nudge_x = 0.5,
+    color = "black"
+  ) +
+  theme_eai
+
+p1 | p2
+```
+
+```{r}
+# cbp1 <- c("#999999", "#E69F00", "#56B4E9", "#009E73",
+#           "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
+#           "#E69F00", "#E69F00")
+
+# df  %>%
+#   separate_rows(definition_implemented , sep = ";|/|;|,|:|·") %>%
+#   mutate(definition_implemented = str_trim(str_to_lower(definition_implemented))) %>%
+#   separate_rows(domain_of_empathy, sep = ";|/|;|,|:|·") %>%
+#   mutate(domain_of_empathy = str_trim(str_to_lower(domain_of_empathy))) %>%
+#   mutate(across(where(is.character), as.factor)) %>%
+#   drop_na(domain_of_empathy) %>%
+#   filter(definition_implemented != "NA" &
+#            domain_of_empathy != "NA") %>%
+#   group_by(domain_of_empathy, definition_implemented) %>%
+#   summarise(freq = n()) %>%
+#   arrange(desc(freq)) %>%
+#   filter(domain_of_empathy != "") %>%
+#   head(20) %>%
+#   group_by(definition_implemented) %>%
+#   mutate(definition_implemented = fct_reorder(definition_implemented, freq, .desc =
+#                                                 T)) %>%
+#   ggplot() +
+#   aes(freq, domain_of_empathy, fill = definition_implemented) +
+#   geom_col() +
+#   theme_minimal() +
+#   scale_fill_manual(values = cbp1) +
+#   geom_text(
+#     aes(label = domain_of_empathy,
+#         x = 0),
+#     hjust = 0,
+#     nudge_y = 0.05,
+#     nudge_x = 0.05,
+#     color = "black"
+#   ) +
+#   labs(
+#     y = NULL,
+#     x = "Occurences",
+#     title = paste0("Definition implemented by domain"),
+#     fill = "Domain of empathy"
+#   ) +
+#   theme(legend.position = c(0.7, 0.3),
+#         axis.text.y = element_blank()) +
+#   xlim(0, 200) +
+#   coord_cartesian(expand = F)
+
+
+df %>%
+  separate_rows(definition_implemented , sep = ";|/|;|,|:|·") %>%
+  mutate(definition_implemented = str_trim(str_to_lower(definition_implemented))) %>%
+  separate_rows(domain_of_empathy, sep = ";|/|;|,|:|·") %>%
+  mutate(domain_of_empathy = str_trim(str_to_lower(domain_of_empathy))) %>%
+  select(domain_of_empathy, definition_implemented) %>%
+  mutate(
+    domain_of_empathy = forcats::fct_infreq(domain_of_empathy),
+    definition_implemented = forcats::fct_infreq(definition_implemented)
+  ) %>%
+  filter(as.integer(definition_implemented) < 11) %>%
+  mutate(domain_of_empathy = forcats::fct_explicit_na(
+    if_else(
+      as.integer(domain_of_empathy) < 10,
+      domain_of_empathy,
+      factor("Other")
+    ),
+    na_level = "Other"
+  )) %>%
+  mutate(
+    domain_of_empathy = str_to_title(domain_of_empathy),
+    definition_implemented = str_to_title(definition_implemented)
+  ) %>%
+  mutate(domain_of_empathy = forcats::fct_relevel(domain_of_empathy, "Other", after = Inf)) %>%
+  group_by(definition_implemented) %>%
+  summarise(n = n(),
+            domain_of_empathy) %>%
+  group_by(definition_implemented, domain_of_empathy) %>%
+  summarise(n,
+            n_sin = n()) %>%
+  # drop_na() %>%
+  ggplot() +
+  aes(y = reorder(definition_implemented,-n), fill = domain_of_empathy) +
+  geom_bar(aes(x = stat(count)), alpha = 0.9) +
+  scale_y_discrete(limits = rev) +
+  scale_fill_viridis_d() +
+  labs(fill = "Domain of Empathy",
+       y = NULL,
+       title = "Definition and domain of empathy") +
+  geom_text(
+    aes(
+      label = paste0(definition_implemented, " (", n, ")"),
+      x = 0
+    ),
+    hjust = 0,
+    nudge_y = 0.05,
+    nudge_x = 0.5,
+    color = "black"
+  ) +
+  theme_eai +
+  theme(legend.position = c(0.675, 0.475)) +
+  coord_cartesian(expand = F) +
+  guides(fill=guide_legend(ncol=2))
+
+
+```
+
+```{r}
+cbp1 <- c("#999999", "#E69F00", "#56B4E9", "#009E73",
+          "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
+          "#E69F00", "#E69F00")
+
+df  %>%
+  separate_rows(approach , sep = ";|/|;|,|:|·") %>%
+  mutate(approach = str_trim(str_to_lower(approach))) %>%
+  separate_rows(embodiment, sep = ";|/|;|,|:|·") %>%
+  mutate(embodiment = str_trim(str_to_lower(embodiment))) %>%
+  mutate(across(where(is.character), as.factor)) %>%
+  drop_na(embodiment) %>%
+  filter(approach != "NA" & embodiment != "NA") %>%
+  group_by(embodiment, approach) %>%
+  summarise(freq = n()) %>%
+  arrange(desc(freq)) %>%
+  filter(embodiment!="") %>% 
+  head(20) %>%
+  group_by(approach) %>% 
+  mutate(approach = fct_reorder(approach, freq, .desc=T)) %>% 
+  ggplot() +
+  aes(freq, embodiment, fill = approach) +
+  geom_col() +
+  theme_minimal() +
+  scale_fill_manual(values=cbp1) +
+  geom_text(aes(label=embodiment,
+                x=0), 
+            hjust=0,
+            nudge_y=0.05,
+            nudge_x=0.05,
+            color="black") +
+  labs(y=NULL,
+       x="Occurences",
+       title=paste0("Approach by embodiment tool"),
+       fill="Approach") +
+  theme(legend.position=c(0.8, 0.6),
+        axis.text.y=element_blank()) +
+  xlim(0, 40) +
+  coord_cartesian(expand=F)
+
+```
+
+
+```{r fig.width=5, fig.height=2}
+df <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1156551034")
+
+old_df <- df
+df <- df %>% 
+  drop_na(Domain)
+
+p1 <- df %>% 
+  mutate(
+    `Type of publication` = case_when(
+      `Type of publication` == "conferencePaper" ~ "Conference",
+      `Type of publication` == "journalArticle" ~ "Journal"
+    )
+  ) %>% 
+  filter(`Type of publication` != "bookChapter") %>% 
+  ggplot() +
+  aes(x = Year, fill = `Type of publication`) +
+  geom_histogram(data=old_df, aes(x=Year, fill=NULL), binwidth = 1, alpha=0.2) +
+  geom_histogram(binwidth = 1, color="white", position="stack") +
+  labs(y="Studies", fill=NULL) +
+  theme_classic() +
+  coord_cartesian(expand=F) +
+  scale_fill_tableau() +
+  theme(legend.position="top")
+
+p2 <- df %>% 
+  mutate(Citations = if_else(Citations > 99, 99, Citations)) %>%
+  ggplot() +
+  aes(x = Citations) +
+  geom_histogram(binwidth = 10, position="dodge", fill = ggthemes_data$tableau$`color-palettes`$regular$`Tableau 10`$value[1]) +
+  labs(y="Studies") +
+  annotate("text", 85, 15, label="100+") +
+  theme_classic() +
+  coord_cartesian(expand=F, xlim=c(0,99)) + 
+  scale_fill_tableau()
+
+ggsave("../figures/1_studies_by_year.png", p1, units="px", width=1000, height=512)
+ggsave("../figures/1_citations.png", p2, device="png", units="px", width=512, height=512)
+
+```
+
+```{r}
+dis <- read_csv2("../articles/check_dissonance.csv")
+check <- read_csv2("../articles/complete.csv")
+
+check[!(check$Title %in% dis$Title),]$Title
+dis[!(dis$Title %in% check$Title),]$Title
+
+check$DOI %>% as.data.frame %>% write_csv("DOI.txt")
+
+```
+
+## JSON to network 😎
+```{r warning=FALSE, message=FALSE}
+pacman::p_load(tidyverse, lubridate, bibliometrix, stringr, bibtex, rjson, network, tidygraph, ggraph, netrankr, extrafont, seriation)
+
+setwd("C:/Users/esben/Desktop/git/empathetic-ai-review/article_processing")
+
+result <- fromJSON(file="raw_data.json")
+
+vertices <- tibble(id=rep(NA_character_, 179))
+edges <- tibble(source=c(), target=c())
+
+vertices$id <- sapply(result, function(x){ as.character(x$id[[1]])})
+vertices$title <- sapply(result, function(x){ as.character(x$title[[1]])})
+
+for(input in result) {
+  for(ref in input$references) {
+    if(as.character(ref) %in% vertices$id) {
+      edges <- edges %>% add_row(source=as.character(input$id), target=as.character(ref))
+    }
+  }
+}
+
+edges_title <- edges
+edges_title[] <- lapply(edges, function(x) vertices$title[match(x, vertices$id)])
+
+write_csv2(edges, "edges.csv")
+write_csv2(edges_title, "edges_title.csv")
+write_csv2(vertices, "vertices.csv")
+
+pacman::p_load(tidyverse, network, tidygraph, lubridate, ggraph, netrankr, extrafont, seriation)
+
+colnames(edges_title) = c("from", "to")
+
+graph <- edges_title %>%
+  as_tbl_graph() %>%
+  activate(nodes) %>%
+  mutate(degreein = centrality_degree(weights=NULL, mode="in", loops=FALSE, normalized=FALSE),
+         pagerank = centrality_pagerank(),
+         betweenness = centrality_betweenness(),
+         community = as.factor(group_edge_betweenness()))
+```
+
+## Graph
+```{r warning=FALSE, message=FALSE}
+png("../figures/1_citation_network.png", 1200, 1200, units="px", res=300, pointsize = 10)
+
+set.seed(2)
+c1 <- igraph::cluster_leading_eigen(graph) 
+plot(graph, vertex.color=membership(c1), vertex.label=NA, layout=igraph::layout_with_fr(graph), arrow.size=0.1, fill=ggthemes_data$tableau$`color-palettes`$regular$`Tableau 10`$value) +
+  text(0.45, -0.85, "Abuse", adj=c(0,1)) +
+  text(1.24, 0.4, "Embodiment", adj=c(0,1), srt=-90) +
+  text(0.5, 1, "Chatbot", cex=1, adj=c(0,1), srt=-20) +
+  text(-0.7, 1.05, "Narrative", cex=1, adj=c(0,1), srt=20) +
+  text(-1.27, 0.25, "Education", cex=1, adj=c(0,1)) +
+  text(-1.1, -0.65, "Companion", cex=1, adj=c(0,1), srt=-25)
+
+dev.off()
+
+# communities(c1)
+# 9 = abuse
+# 1 = narrative
+# 3 = chatbot / sentiment analysis
+# 7 = Companion
+# 8 = embodiment
+# 10 = child dev
+```
+
+## Numbers for graph
+```{r}
+df <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1156551034") %>% 
+  drop_na(Domain)
+
+df %>% 
+  group_by(Domain) %>% 
+  summarise(
+    n = n()
+  )
+
+df %>% 
+  mutate(
+    main_domain = case_when(
+      Domain %in% c("Image emotion classification", "Machine learning") ~ "Machine learning",
+      Domain %in% c("Mirroring", "Abuse study", "Model", "VR", "Cognitive neuroscience", "Perception of robot") ~ "Perception of robot",
+      Domain %in% c("Therapy", "Education", "Service", "Health", "Military", "Embodiment", "Chatbot", "Companion robot", "Robot / AI development") ~ "Robot / AI development",
+      TRUE ~ "Human-robot interaction"
+    )
+  ) %>% 
+  ungroup() %>% 
+  filter(main_domain == "Robot / AI development") %>% 
+  select(Embodiment, `Measurement method`)
+
+# Embodiment: Data, Robot, Virtual AI
+# Perception: Questionnaire, biosignals, behavioural
+```
+
+## Database
+```{r}
+df_full <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1943945845")
+
+df <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1156551034") %>% 
+  mutate(`Title Lower` = str_to_lower(Title))
+
+p1 <- df_full %>% 
+  left_join(df, by="Title Lower") %>% 
+  drop_na(Domain) %>% 
+  group_by(Database) %>% 
+  summarise(
+    n = n()
+  ) %>% 
+  mutate(Database = fct_reorder(Database, n)) %>% 
+  ggplot() +
+  aes(y = Database, x = n) +
+  geom_col(fill = ggthemes_data$tableau$`color-palettes`$regular$`Tableau 10`$value[1]) +
+  labs(y=NULL, x="Studies") +
+  theme_classic() +
+  coord_cartesian(expand=F, xlim=c(0,50)) + 
+  scale_fill_tableau()
+
+ggsave("../figures/1_database.png", p1, units="px", width=700, height=512)
+
+```
+## Approach, domain of empathy and definition implemented (maybe study design)
+```{r}
+df <- gsheet2tbl("https://docs.google.com/spreadsheets/d/14ZDSEwc9PZZRNYIldqQoPm34uWidiglJ5RB3bn5YnQQ/edit#gid=1156551034") %>% 
+  drop_na(Domain)
+
+p1 <- df %>% 
+  separate_rows(
+    approach, sep="[+,:/;.]"
+  ) %>% 
+  group_by(approach) %>% 
+  summarise(
+    app_freq = n(),
+    empathy_domain = empathy_domain
+  ) %>% 
+  arrange(desc(app_freq)) %>% 
+  ungroup() %>% 
+  separate_rows(
+    empathy_domain, sep="[+,:/;.]"
+  ) %>% 
+  group_by(approach, empathy_domain) %>% 
+  summarise(
+    emp_freq = n(),
+    app_freq = mean(app_freq)
+  ) %>% 
+  group_by(approach) %>% 
+  mutate(
+    emp_freq = emp_freq / sum(emp_freq) * mean(app_freq)
+  ) %>% 
+  ungroup %>% 
+  mutate(
+    empathy_domain = as.factor(if_else(is.na(empathy_domain), "Not specified", empathy_domain)),
+    approach = as.factor(if_else(is.na(approach), "Not specified", approach)),
+    empathy_domain = (fct_relevel(empathy_domain, c("Embodied cues", "Language", "Face","Social behaviour", "Not specified"))),
+    approach = fct_rev(fct_relevel(approach, c("Machine learning", "GOFAI", "Cognitive model", "Prerecorded", "Not specified")))
+  ) %>%
+  ggplot() +
+  aes(y=approach, fill=empathy_domain, x=emp_freq) +
+  geom_col(color="white") +
+  coord_cartesian(expand=F) +
+  theme_classic() +
+  scale_fill_tableau() +
+  labs(
+    y=NULL,
+    x="Number of papers",
+    fill=NULL
+  ) +
+  theme(legend.position="top",
+        legend.text=element_text(size=8),
+        legend.title=element_text(size=8),
+        legend.key.size=unit(0.4, "cm")) +
+  guides(fill = guide_legend(nrow = 3, byrow = TRUE))
+
+p2 <- df %>% 
+  separate_rows(
+    definition_implemented, sep="[+,:/;.]"
+  ) %>% 
+  group_by(definition_implemented) %>% 
+  summarise(
+    def_freq = n(),
+    study_design = study_design
+  ) %>% 
+  arrange(desc(def_freq)) %>% 
+  ungroup() %>% 
+  separate_rows(
+    study_design, sep="[+,:/;.]"
+  ) %>% 
+  group_by(definition_implemented, study_design) %>% 
+  summarise(
+    stu_freq = n(),
+    def_freq = mean(def_freq)
+  ) %>% 
+  group_by(definition_implemented) %>% 
+  mutate(
+    stu_freq = stu_freq / sum(stu_freq) * mean(def_freq),
+    study_design = as.factor(if_else(is.na(study_design), "Not specified", study_design)),
+    definition_implemented = as.factor(if_else(is.na(definition_implemented), "Not specified", definition_implemented)),
+    definition_implemented = fct_rev(fct_relevel(definition_implemented, c("Emotional empathy", "Social intelligence", "Embodiment","Cognitive empathy", "Imitation", "Not specified"))),
+    study_design = (fct_relevel(study_design, c("Social interaction", "Behaviour modelling", "Machine learning","Game", "Pain", "Not specified")))
+  ) %>% 
+  ungroup() %>% 
+  ggplot() +
+  aes(y=definition_implemented, fill=study_design, x=stu_freq) +
+  geom_col(color="white") +
+  coord_cartesian(expand=F) +
+  theme_classic() +
+  scale_fill_tableau() +
+  labs(
+    y=NULL,
+    x="Number of papers",
+    fill=NULL
+  ) +
+  theme(legend.position="top",
+        legend.text=element_text(size=8),
+        legend.title=element_text(size=8),
+        legend.key.size=unit(0.4, "cm")) +
+  guides(fill = guide_legend(nrow = 3, byrow = TRUE))
+
+
+ggsave("../figures/3_approach_domain.png", p1, units="px", width=1000, height=1000)
+ggsave("../figures/3_study_definition.png", p2, device="png", units="px", width=1000, height=1000)
+```
+
+
+
+
+
+

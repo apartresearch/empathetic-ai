@@ -1,0 +1,816 @@
+---
+title: "EDA_v1"
+author: "Lasse Hyldig Hansen"
+date: "2022-08-07"
+output: html_document
+output: 
+  html_document:
+    toc: true
+---
+
+```{r}
+pacman::p_load(tidyverse, readr, stringr, ggplot2, ggpubr)
+pacman::p_load(tidyverse, 
+               lubridate, 
+               Hmisc, 
+               dplyr, 
+               ggplot2, 
+               maps, 
+               rnaturalearth, 
+               gganimate, 
+               ggpmisc)
+```
+
+```{r}
+articles_coded <- read_csv("articles_coded.csv")
+```
+
+### Year plot
+
+```{r}
+articles_coded %>% 
+                group_by(year) %>% 
+                summarise(count = n()) %>%
+                ggplot(., aes(x=as.factor(year), y= count)) + #Setting aesthetics with month as a factor
+                geom_bar(stat="identity", 
+                         width=0.7,          #Setting width of bars
+                         fill="steelblue") + #Setting color
+                theme_minimal() +             #Setting theme 
+                xlab("Year") +               #Changing x label
+                ylab("Publication Counts ")
+```
+
+### definition implemented Plot
+
+#### Getting unique definitions implemented
+
+```{r}
+unique(articles_coded$def_imp)
+```
+
+```{r}
+articles_coded_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    Embodiment = paste0(str_count(def_imp, "Embodiment")),
+    Emotional_empathy = paste0(str_count(def_imp, "Emotional empathy")),
+    Cognitive_empathy = paste0(str_count(def_imp, "Cognitive empathy")),
+    Social_intelligence = paste0(str_count(def_imp, "Social intelligence")),
+    Imitation = paste0(str_count(def_imp, "Imitation")),
+    prosociality = paste0(str_count(def_imp, "prosociality")),
+    Cognitive_model = paste0(str_count(def_imp, "NLP")),
+    Behaviour_model = paste0(str_count(def_imp, "none"))) %>% 
+    pivot_longer(., 3:10)
+
+def_imp_count =  articles_coded_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+def_imp_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Count") + 
+  xlab("Definition Implemented")
+```
+
+
+```{r}
+design_imp_long <- articles_coded %>% 
+    summarise(
+    year = year,
+    country = country,
+    def_imp = def_imp,
+    Pain = paste0(str_count(study_design, "Pain")),
+    Game = paste0(str_count(study_design, "game")),
+    "Social Interaction" = paste0(str_count(study_design, "Social interaction")),
+    "Machine Learning" = paste0(str_count(study_design, "Machine learning")),
+    VR = paste0(str_count(study_design, "VR")),
+    Chatbot = paste0(str_count(study_design, "Chatbot")),
+    "Cognitive model" = paste0(str_count(study_design, "Cognitive model")),
+    "Behaviour model" = paste0(str_count(study_design, "Behaviour model")),
+    "Video stimuli" = paste0(str_count(study_design, "video")),
+    "Photo stimuli" = paste0(str_count(study_design, "images"))
+    ) %>% pivot_longer(., 4:13) %>% 
+    mutate(study_design = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>% 
+    select(1:3, 6) %>% 
+    mutate(
+    Embodiment = paste0(str_count(def_imp, "Embodiment")),
+    "Emotional empathy" = paste0(str_count(def_imp, "Emotional empathy")),
+    "Cognitive empathy" = paste0(str_count(def_imp, "Cognitive empathy")),
+    "Social intelligence" = paste0(str_count(def_imp, "Social intelligence")),
+    Imitation = paste0(str_count(def_imp, "Imitation")),
+    Prosociality = paste0(str_count(def_imp, "prosociality")),
+    "NLP" = paste0(str_count(def_imp, "NLP"))) %>%
+    pivot_longer(., 5:11) %>%
+    mutate(value = as.numeric(value)) %>%  
+    group_by(name, study_design) %>% 
+    summarise(count = sum(value, na.rm = T)) %>% 
+    arrange(desc(count)) %>% 
+    rename("Study Design" = "study_design")
+
+design_imp_long %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = `Study Design`)) + geom_col() + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Articles") + 
+  scale_fill_manual(values=c("#597787", "#649079", "#8BBBA2", "#8DA185", "#8E8767", "#9B7E46", "#C89856", "#BD8C58", "#CDA982", "#DDC4A9")) +
+  xlab("Empathy Definition")
+
+```
+
+### Empaty domain Plot
+
+#### Getting unique empathy domain categories
+
+```{r}
+unique(articles_coded$emp_dom)
+```
+
+```{r Empaty domain Plot}
+emp_dom_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    citations = citations,
+    country = country,
+    title = title, 
+    "Embodied cues" = paste0(str_count(emp_dom, "Embodied cues")),
+    Language = paste0(str_count(emp_dom, "Language")),
+    "Social behavior" = paste0(str_count(emp_dom, "Social behavior")),
+    "Facial expression" = paste0(str_count(emp_dom, "Facial expression")),
+    Embodiment = paste0(str_count(emp_dom, "Embodiment")),
+    Prosociality = paste0(str_count(emp_dom, "Prosociality"))) %>% pivot_longer(., 5:10)
+
+emp_dom_count =  emp_dom_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarise(count = sum(value, na.rm = T),
+                                citations = mean(citations, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+### FORSØG; IKKE FÆRDIGT; 
+
+emp_dom_title_c =  emp_dom_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(title) %>% 
+                      summarise(
+                                name = name,
+                                count = sum(value, na.rm = T),
+                                citations = mean(citations, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+## DENNE ER FÆRDIG 
+
+
+emp_dom_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Articles") + 
+  xlab("Empathy Domain")
+
+
+### FORSØG; IKKE FÆRDIGT; 
+
+emp_dom_count %>%
+  ggplot(., aes(x = citations, y = count, fill = name)) +
+  geom_point(alpha=0.7) +
+  geom_line() + 
+  scale_colour_manual(values=c("#597787", "#649079", "#8DA185", "#9B7E46", "#BD8C58", "#DDC4A9")) + 
+  theme_light()
+  theme_minimal() +           
+  ylab("Articles") + 
+  xlab("Empathy Domain")
+  
+
+```
+
+### Empathy domain per Country plot
+
+```{r Empathy domain per Country plot}
+Emp_dom_Per_Country <- articles_coded %>% 
+      summarise(
+      year = year,
+      country = country,
+      "Embodied cues" = paste0(str_count(emp_dom, "Embodied cues")),
+       Language = paste0(str_count(emp_dom, "Language")),
+      "Social behavior" = paste0(str_count(emp_dom, "Social behavior")),
+      "Facial expression" = paste0(str_count(emp_dom, "Facial expression")),
+      Embodiment = paste0(str_count(emp_dom, "Embodiment")),
+      Prosociality = paste0(str_count(emp_dom, "Prosociality"))) %>% 
+      pivot_longer(., 3:8) %>% 
+      mutate(emp_dom = ifelse(value == 1, name, NA)) %>% 
+      drop_na() %>% 
+      select(1:2, 5) %>% 
+      mutate(
+      ID = paste0(str_count(country, "ID")),
+      PT = paste0(str_count(country, "PT")),
+      CN = paste0(str_count(country, "CN")),
+      UK = paste0(str_count(country, "UK")),
+      DE = paste0(str_count(country, "DE")),
+      US = paste0(str_count(country, "US")),
+      IR = paste0(str_count(country, "IR")),
+      MX = paste0(str_count(country, "MX")),
+      HK = paste0(str_count(country, "HK")),
+      ES = paste0(str_count(country, "ES")),
+      IT = paste0(str_count(country, "IT")),
+      EU = paste0(str_count(country, "EU")),
+      IL = paste0(str_count(country, "IL")),
+      CH = paste0(str_count(country, "CH")),
+      NZ = paste0(str_count(country, "NZ")),
+      PL = paste0(str_count(country, "PL")),
+      FR = paste0(str_count(country, "FR")),
+      TH = paste0(str_count(country, "TH")),
+      SE = paste0(str_count(country, "SE")),
+      SA = paste0(str_count(country, "SA")),
+      PK = paste0(str_count(country, "PK")),
+      BR = paste0(str_count(country, "BR")),
+      MY = paste0(str_count(country, "MY")),
+      AU = paste0(str_count(country, "AU")),
+      JP = paste0(str_count(country, "JP")),
+      BE = paste0(str_count(country, "BE")),
+      NL = paste0(str_count(country, "NL")),
+      KR = paste0(str_count(country, "KR")),
+      SG = paste0(str_count(country, "SG")),
+      SK = paste0(str_count(country, "SK")),
+      TR = paste0(str_count(country, "TR")),
+      CA = paste0(str_count(country, "CA")),
+      IN = paste0(str_count(country, "IN")),
+      PT = paste0(str_count(country, "BE")),
+      RO = paste0(str_count(country, "RO")),
+      IE = paste0(str_count(country, "IE")),
+      TW = paste0(str_count(country, "TW")),
+      DK = paste0(str_count(country, "DK")),
+      GB = paste0(str_count(country, "GB"))) %>% 
+      pivot_longer(., 4:41) %>%
+      mutate(value = as.numeric(value)) %>% 
+      group_by(name, emp_dom) %>% 
+      summarise(count = sum(value, na.rm = T)) %>% 
+      arrange(desc(count)) %>% 
+      rename("Empathy Domain" = "emp_dom")
+
+Emp_dom_Per_Country %>% 
+    ggplot(., aes(x = reorder(name, +count), y = count, fill = `Empathy Domain`)) + geom_col() + 
+    coord_flip() +
+    theme_minimal() +           
+    ylab("Articles") + 
+scale_fill_manual(values=c("#597787", "#649079", "#8BBBA2", "#8E8767", "#C89856", "#DDC4A9")) +    
+   xlab("Country")
+```
+
+
+```{r Country - Human/Robot plot}
+
+Countr_Human_Robot <- articles_coded %>% 
+      summarise(
+      year = year,
+      country = country,
+      robot = paste0(str_count(robot_human, "R")),
+      human = paste0(str_count(robot_human, "h"))) %>% 
+      pivot_longer(., 3:4) %>% 
+      mutate(human_robot = ifelse(value == 1, name, NA)) %>% 
+      drop_na() %>%
+      select(1:2, 5) %>% 
+      mutate(
+      ID = paste0(str_count(country, "ID")),
+      PT = paste0(str_count(country, "PT")),
+      CN = paste0(str_count(country, "CN")),
+      UK = paste0(str_count(country, "UK")),
+      DE = paste0(str_count(country, "DE")),
+      US = paste0(str_count(country, "US")),
+      IR = paste0(str_count(country, "IR")),
+      MX = paste0(str_count(country, "MX")),
+      HK = paste0(str_count(country, "HK")),
+      ES = paste0(str_count(country, "ES")),
+      IT = paste0(str_count(country, "IT")),
+      EU = paste0(str_count(country, "EU")),
+      IL = paste0(str_count(country, "IL")),
+      CH = paste0(str_count(country, "CH")),
+      NZ = paste0(str_count(country, "NZ")),
+      PL = paste0(str_count(country, "PL")),
+      FR = paste0(str_count(country, "FR")),
+      TH = paste0(str_count(country, "TH")),
+      SE = paste0(str_count(country, "SE")),
+      SA = paste0(str_count(country, "SA")),
+      PK = paste0(str_count(country, "PK")),
+      BR = paste0(str_count(country, "BR")),
+      MY = paste0(str_count(country, "MY")),
+      AU = paste0(str_count(country, "AU")),
+      JP = paste0(str_count(country, "JP")),
+      BE = paste0(str_count(country, "BE")),
+      NL = paste0(str_count(country, "NL")),
+      KR = paste0(str_count(country, "KR")),
+      SG = paste0(str_count(country, "SG")),
+      SK = paste0(str_count(country, "SK")),
+      TR = paste0(str_count(country, "TR")),
+      CA = paste0(str_count(country, "CA")),
+      IN = paste0(str_count(country, "IN")),
+      PT = paste0(str_count(country, "BE")),
+      RO = paste0(str_count(country, "RO")),
+      IE = paste0(str_count(country, "IE")),
+      TW = paste0(str_count(country, "TW")),
+      DK = paste0(str_count(country, "DK")),
+      GB = paste0(str_count(country, "GB"))) %>% 
+      pivot_longer(., 4:41) %>%
+      mutate(value = as.numeric(value)) %>% 
+      group_by(name, human_robot) %>% 
+      summarise(count = sum(value, na.rm = T)) %>% 
+      arrange(desc(count)) %>% 
+      rename("Study focus" = "human_robot")
+
+Countr_Human_Robot %>% 
+    ggplot(., aes(x = reorder(name, +count), y = count, fill = `Study focus`)) + geom_col() + 
+    coord_flip() +
+    theme_light() +           
+    ylab("Articles") + 
+    scale_fill_manual(values=c("#BD8C58", "#597787")) +
+    xlab("Country")
+
+
+
+```
+
+### Study Design Plot
+
+#### Getting unique study design categories
+
+```{r Getting unique study design categories}
+unique(articles_coded$study_design)
+```
+
+```{r Study Design Plot}
+articles_coded_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    Pain = paste0(str_count(study_design, "Pain")),
+    Game = paste0(str_count(study_design, "game")),
+    Social_Interaction = paste0(str_count(study_design, "Social interaction")),
+    Machine_Learning = paste0(str_count(study_design, "Machine learning")),
+    VR = paste0(str_count(study_design, "VR")),
+    Chatbot = paste0(str_count(study_design, "Chatbot")),
+    Cognitive_model = paste0(str_count(study_design, "Cognitive model")),
+    Behaviour_model = paste0(str_count(study_design, "Behaviour model")),
+    video = paste0(str_count(study_design, "video")),
+    photo = paste0(str_count(study_design, "images"))
+    ) %>% pivot_longer(., 3:12)
+
+study_design_count =  articles_coded_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+study_design_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Count") + 
+  xlab("Study Design")
+  
+
+```
+
+```{r}
+hr_studyDesign <- articles_coded %>% 
+      summarise(
+      year = year,
+      country = country,
+      study_design = study_design,
+      Robot = paste0(str_count(robot_human, "R")),
+      Human = paste0(str_count(robot_human, "h"))) %>%
+      pivot_longer(., 4:5) %>% 
+      mutate(robot_human = ifelse(value == 1, name, NA)) %>% 
+      drop_na() %>% 
+  
+      
+```
+
+
+### Measurement method Plot
+
+#### Getting unique measurement method categories
+
+```{r Getting unique measurement method}
+unique(articles_coded$measurement_method)
+```
+
+```{r Measurement method Plot}
+meas_meth_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    Embodied_cues = paste0(str_count(measurement_method, "Machine learning")),
+    Language = paste0(str_count(measurement_method, "Questionnaire")),
+    Soc_Behavior = paste0(str_count(measurement_method, "Interview")),
+    Facial_expression = paste0(str_count(measurement_method, "behavior modelling")),
+    Embodiment = paste0(str_count(measurement_method, "reaction time")),
+    Prosociality = paste0(str_count(measurement_method, "Prosociality"))) %>% pivot_longer(., 3:8)
+
+emp_dom_count =  emp_dom_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+emp_dom_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Count") + 
+  xlab("Empathy Domain")
+  
+
+```
+
+### Human or Robot Plot
+
+#### Getting unique measurement method categories
+
+```{r Human or Robot Plot}
+hr_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    robot = paste0(str_count(robot_human, "R")),
+    human = paste0(str_count(robot_human, "h"))) %>%
+    pivot_longer(., 3:4)
+
+
+hr_count =  hr_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+hr_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Count") + 
+  xlab("Human or Robot")
+  
+
+```
+
+```{r Human/robot - Study design plot }
+hr_studyDesign <- articles_coded %>% 
+      summarise(
+      year = year,
+      country = country,
+      study_design = study_design,
+      Robot = paste0(str_count(robot_human, "R")),
+      Human = paste0(str_count(robot_human, "h"))) %>%
+      pivot_longer(., 4:5) %>% 
+      mutate(robot_human = ifelse(value == 1, name, NA)) %>% 
+      drop_na() %>% 
+      select(1:3, 6) %>% 
+      mutate(
+      Pain = paste0(str_count(study_design, "Pain")),
+      Game = paste0(str_count(study_design, "game")),
+      "Social Interaction" = paste0(str_count(study_design, "Social interaction")),
+      "Machine Learning" = paste0(str_count(study_design, "Machine learning")),
+      VR = paste0(str_count(study_design, "VR")),
+      Chatbot = paste0(str_count(study_design, "Chatbot")),
+      "Cognitive model" = paste0(str_count(study_design, "Cognitive model")),
+      "Behaviour model" = paste0(str_count(study_design, "Behaviour model")),
+      "Video stimuli" = paste0(str_count(study_design, "video")),
+      "Photo stimuli" = paste0(str_count(study_design, "images"))) %>% 
+      pivot_longer(., 5:14) %>% 
+      mutate(value = as.numeric(value)) %>% 
+      group_by(name, robot_human) %>% 
+      summarise(count = sum(value, na.rm = T)) %>% 
+      arrange(desc(count)) %>% 
+      rename("Study focus" = "robot_human")
+  
+  hr_studyDesign %>%
+    ggplot(., aes(x = reorder(name, +count), y = count, fill = `Study focus`)) + geom_col() + 
+    coord_flip() +
+    theme_minimal() +           
+    ylab("Articles") + 
+    scale_fill_manual(values=c("#BD8C58", "#597787")) +
+    xlab("Study Design")
+
+```
+
+
+### Embodiment Plot
+
+#### Getting unique embodiment categories
+
+```{r Getting unique embodiment categories}
+unique(articles_coded$embodiment)
+```
+
+```{r embodiment Plot}
+embodiment_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    Robot = paste0(str_count(embodiment, "Robot")),
+    Videos = paste0(str_count(embodiment, "Videos")),
+    VR = paste0(str_count(embodiment, "VR")),
+    Avatar = paste0(str_count(embodiment, "Avatar")),
+    Text = paste0(str_count(embodiment, "Text")),
+    Speech = paste0(str_count(embodiment, "Speech")),
+    Virtual_Agent = paste0(str_count(embodiment, "Virtual agent")),
+    Virtual_system = paste0(str_count(embodiment, "Virtual system")),
+    Smartphone = paste0(str_count(embodiment, "Smartphone")),
+    Not_Mentioned = paste0(str_count(embodiment, "Not mentioned"))) %>%
+    pivot_longer(., 3:12)
+
+
+embodiment_count =  embodiment_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+embodiment_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Count") + 
+  xlab("Embodiment")
+  
+
+```
+
+### Application space Plot
+
+#### Getting unique application space categories
+
+```{r Getting unique application space categories}
+unique(articles_coded$app_space)
+```
+
+```{r Application space Plot}
+app_space_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    HRI = paste0(str_count(app_space, "HRI")),
+    Psychology = paste0(str_count(app_space, "Psychology")),
+    Medicine = paste0(str_count(app_space, "Medicine")),
+    Therapy = paste0(str_count(app_space, "Therapy")),
+    Education = paste0(str_count(app_space, "Education")),
+    Machine_Learning = paste0(str_count(app_space, "Machine Learning")),
+    Healthcare = paste0(str_count(app_space, "Healthcare")),
+    Customer_Service = paste0(str_count(app_space, "Customer Service")),
+    Not_Mentioned = paste0(str_count(app_space, "Not mentioned")),
+    VR = paste0(str_count(app_space, "VR")),
+    NLP = paste0(str_count(app_space, "NLP")),
+    game = paste0(str_count(app_space, "game")),
+    Counseling = paste0(str_count(app_space, "Counseling")),
+    Linguistics = paste0(str_count(app_space, "Linguistics")),
+    Computer_vision = paste0(str_count(app_space, "Computer vision"))
+    
+    
+    ) %>%
+    pivot_longer(., 3:17)
+
+
+app_space_count =  app_space_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarize(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+app_space_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Count") + 
+  xlab("Application Space")
+  
+
+```
+
+### Approach Plot
+
+#### Getting unique Approach categories
+
+```{r Getting unique Approach categories}
+unique(articles_coded$approach)
+```
+
+```{r Approach Plot data wrangling}
+approach_long = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    GOFAI = paste0(str_count(approach, "GOFAI")),
+    Cognitive_model = paste0(str_count(approach, "Cognitive model")),
+    Machine_learning = paste0(str_count(approach, "Machine learning")),
+    Prerecorded = paste0(str_count(approach, "Prerecorded"))
+    ) %>%
+    pivot_longer(., 3:6)
+
+
+approach_count =  approach_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+approach_count %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Count") + 
+  xlab("Approach")
+```
+
+```{r}
+approach_count_country =  approach_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name, country) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+
+
+```
+
+### Approach per year plot:
+
+```{r Approach per year plot}
+count_year = approach_long %>% 
+              mutate(value = as.numeric(value)) %>%  
+              group_by(year) %>% 
+              summarise(count_year = sum(value))
+
+count_year_app = approach_long %>% 
+                  mutate(value = as.numeric(value)) %>%  
+                  group_by(year, name) %>% 
+                  summarise(count_year_app = sum(value))
+
+count_join = left_join(count_year_app, count_year, by = "year")
+
+count_join = count_join %>% 
+             mutate(prop_app = (count_year_app/count_year)*100)
+
+library(viridis)
+ggplot(count_join, aes(x=year, y=prop_app, fill=name)) + 
+    geom_area() +
+    theme_light() +
+    geom_area(alpha=0.6 , size=.5, colour="white") +
+    scale_fill_viridis(discrete = T) +
+    facet_wrap(~name)
+
+ggplot(count_join, aes(x=year, y=prop_app, color = name)) +
+    geom_point(alpha=0.7) +
+    scale_colour_manual(values=c("#597787", "#AEAE97", "#F4B266", "#BD8C58")) + 
+    geom_line() + 
+    theme_light()
+
+```
+### Approach data for Data Wrapper
+
+```{r Setting up data for Data Wrapper}
+approach_datawrapper = 
+    articles_coded %>%
+    summarise(
+    year = year,
+    country = country,
+    GOFAI = paste0(str_count(approach, "GOFAI")),
+    Cognitive_model = paste0(str_count(approach, "Cognitive model")),
+    Machine_learning = paste0(str_count(approach, "Machine learning")),
+    Prerecorded = paste0(str_count(approach, "Prerecorded"))
+    )
+
+app_datawrapper = approach_datawrapper %>% 
+                      group_by(year) %>% 
+                      mutate(GOFAI = as.numeric(GOFAI),
+                             Cognitive_model = as.numeric(Cognitive_model),
+                             Machine_learning = as.numeric(Machine_learning),
+                             Prerecorded = as.numeric(Prerecorded)
+                             ) %>% 
+                      summarise(GOFAI = sum(GOFAI),
+                                Cognitive_model = sum(Cognitive_model),
+                                Machine_learning = sum(Machine_learning),
+                                Prerecorded = sum(Prerecorded),
+                                )
+
+app_datawrapper <- left_join(app_datawrapper, count_year)
+
+app_datawrapper_prop = app_datawrapper %>% mutate(GOFAI = (GOFAI/count_year)*100, 
+                                                  Cognitive_model = (Cognitive_model/count_year)*100,
+                                                  Machine_learning = (Machine_learning/count_year)*100,
+                                                  Prerecorded = (Prerecorded/count_year)*100)
+                                                  
+                                                
+write_csv(app_datawrapper_prop, "app_datawrapper_prop.csv")
+
+```
+
+
+
+### Approach and Empathy Plot
+
+```{r}
+emp_app_long <- articles_coded %>% 
+    summarise(
+    year = year,
+    country = country,
+    approach = approach,
+    "Embodied cues" = paste0(str_count(emp_dom, "Embodied cues")),
+    Language = paste0(str_count(emp_dom, "Language")),
+    "Soc Behavior" = paste0(str_count(emp_dom, "Social behavior")),
+    "Facial expression" = paste0(str_count(emp_dom, "Facial expression")),
+    Embodiment = paste0(str_count(emp_dom, "Embodiment")),
+    Prosociality = paste0(str_count(emp_dom, "Prosociality"))) %>% 
+    pivot_longer(., 4:9) %>% 
+    mutate(emp_dom = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>% 
+    select(1:3, 6) %>% 
+    mutate(
+    GOFAI = paste0(str_count(approach, "GOFAI")),
+    "Cognitive model" = paste0(str_count(approach, "Cognitive model")),
+    "Machine learning" = paste0(str_count(approach, "Machine learning")),
+    Prerecorded = paste0(str_count(approach, "Prerecorded"))) %>%
+    pivot_longer(., 5:8) %>%
+    mutate(value = as.numeric(value)) %>%  
+    group_by(name, emp_dom) %>% 
+    summarise(count = sum(value, na.rm = T)) %>% 
+    arrange(desc(count)) %>% 
+    rename("Empathy Domain" = "emp_dom")
+
+emp_app_long %>%
+  ggplot(., aes(x = reorder(name, +count), y = count, fill = `Empathy Domain`)) + geom_col() + 
+  coord_flip() +
+  theme_minimal() +           
+  ylab("Articles") + 
+  scale_fill_manual(values=c("#597787", "#AFD0BF", "#AEAE97", "#DFD5A5", "#F4B266", "#BD8C58")) +
+  xlab("Approach")
+
+
+```
+
+#### Approach plot 2
+
+```{r}
+approach_count_facet =  approach_long %>% 
+                      mutate(value = as.numeric(value)) %>%  
+                      group_by(name, year) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
+                      arrange(desc(count))
+approach_count_facet$year <- as.factor(approach_count_facet$year)
+
+approach_count_facet$year <- factor(approach_count_facet$year, levels = c("2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022"))
+
+
+approach_count_facet %>%
+  group_by(name) %>% 
+  ggplot(aes(year, count, fill = name)) +
+  geom_col(show.legend = FALSE) + 
+  #coord_flip() +
+  theme_minimal() +  
+  facet_wrap(~name) +
+  ylab("Count") + 
+  xlab("Approach")
+```
+### Citations plot
+
+```{r}
+p <- articles_coded %>%
+  ggplot( aes(x=citations)) +
+    geom_histogram(fill = "cornflowerblue", alpha=0.6, position = 'identity') +
+    theme_light()
+
+p
+```
+
+
+```{r}
+plot2 %>% 
+    ## CLEANING DATA ##
+    filter(!is.na(Hurricane_Type)) %>% #Filtering out Hurricane_Type that are NA
+    mutate(Hurricane_Type = ordered(Hurricane_Type, #Ordering it as a factor
+          levels = c("Tropical Depression", "Tropical Storm", "Hurricane", "Major Hurricane"))) %>%
+  
+    ## INITIALIZING PLOT ##
+    ggplot(., aes(x=as.factor(MONTH), y=avg)) + #Setting aesthetics with month as a factor
+    geom_bar(stat="identity",    #Using stat = 'identity' so heights of the bars to represent values in the data
+             width=0.7,          #Setting width of bars
+             fill="steelblue") + #Setting color
+    geom_errorbar(aes(ymin=avg-sd, ymax=avg+sd), #Initializing error bars
+              width = .2) +       #Setting width of error bars
+    theme_minimal() +             #Setting theme 
+    xlab("Month") +               #Changing x label
+    ylab("Number of Hurricanes") +#Changing y label
+    facet_wrap(~Hurricane_Type) + #Facetting by hurricane type
+    ggtitle("Average Number of Hurricanes Per Type and Month with Error Bars") 
+```
+

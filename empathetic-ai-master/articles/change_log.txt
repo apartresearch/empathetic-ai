@@ -1,0 +1,7 @@
+Start : 2125 
+Filter for item type : 2111 
+Filter duplicates : 896 
+Filter reviews : 861 
+Keyword filtering in title and abstract : 264 
+Filter page count above 4 : 264 
+Filter English articles : 260 
