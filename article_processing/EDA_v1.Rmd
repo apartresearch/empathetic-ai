@@ -23,7 +23,8 @@ pacman::p_load(tidyverse,
                ggplot2, 
                hrbrthemes,
                viridis,
-               googlesheets4
+               googlesheets4,
+               ggpmisc
                )
 ```
 
@@ -527,16 +528,20 @@ plot_dat_1 =
     rename("Application Space" = "app_space")  
 
 p1 <- plot_dat_1 %>% 
-    ggplot(., aes(x = reorder(Embodiment, +count), y = count, fill = `Application Space`)) + geom_col() + 
+    ggplot(., aes(x = reorder(Embodiment, +count), y = count, fill = `Application Space`)) + 
+    geom_col(width=1, color="#00000099") + 
+    guides(fill=guide_legend(nrow=2, title.position = "top")) +
+    coord_flip(expand = F, ylim=c(0,79)) + 
     #theme_eai +       
     scale_fill_tableau() + 
     #ylab("Empathy Definiton Implemented") + 
     #scale_fill_manual(values=c("#BD8C58", "#597787")) +
     xlab("Embodiment") +
     #coord_cartesian(expand = F) + 
-    coord_flip(expand = F) + 
     facet_wrap( ~ `Study focus`) +
-    theme_light()
+    theme_light() +
+  geom_hline(yintercept=0, color="#00000099") +
+  labs(subtitle="Embodiment")
    
 ```
 
@@ -589,16 +594,20 @@ plot_dat_2 =
     rename("Study Design" = "study_design")  
 
 p2 <- plot_dat_2 %>% 
-    ggplot(., aes(x = reorder(`Measurement Method`, +count), y = count, fill = `Study Design`)) + geom_col() + 
+    ggplot(., aes(x = reorder(`Measurement Method`, +count), y = count, fill = `Study Design`)) + 
+    geom_col(width=1, color="#00000099") + 
+    guides(fill=guide_legend(nrow=3, title.position = "top")) +
+    coord_flip(expand = F, ylim=c(0,79)) + 
     #theme_eai +       
     scale_fill_tableau() + 
     #ylab("Empathy Definiton Implemented") + 
     #scale_fill_manual(values=c("#BD8C58", "#597787")) +
     xlab("Measurement Method") +
     #coord_cartesian(expand = F) + 
-    coord_flip(expand = F) + 
     facet_wrap( ~ `Study focus`) +
-    theme_light()
+    theme_light() +
+  geom_hline(yintercept=0, color="#00000099") +
+  labs(subtitle="Measurement method")
    
 ```
 
@@ -643,16 +652,20 @@ plot_dat_3 =
     rename("Approach" = "approach")  
 
 p3 <- plot_dat_3 %>% 
-    ggplot(., aes(x = reorder(`Empathy Domain`, +count), y = count, fill = Approach)) + geom_col() + 
+    ggplot(., aes(x = reorder(`Empathy Domain`, +count), y = count, fill = Approach)) + 
+    geom_col(width=1, color="#00000099") + 
+    guides(fill=guide_legend(nrow=2, title.position = "top")) +
+    coord_flip(expand = F, ylim=c(0,79)) + 
     #theme_eai +       
     scale_fill_tableau() + 
     #ylab("Empathy Definiton Implemented") + 
     #scale_fill_manual(values=c("#BD8C58", "#597787")) +
     xlab("Empathy Domain") +
     #coord_cartesian(expand = F) + 
-    coord_flip(expand = F) + 
     facet_wrap( ~ `Study focus`) +
-    theme_light()
+    theme_light() +
+  geom_hline(yintercept=0, color="#00000099") +
+  labs(subtitle="Empathy domain")
    
 ```
 
@@ -700,7 +713,10 @@ plot_dat_4 =
     rename("Study design" = "study_design")
 
 p4 <- plot_dat_4 %>% 
-    ggplot(., aes(x = reorder(def_imp, +count), y = count, fill = `Study design`)) + geom_col() + 
+    ggplot(., aes(x = reorder(def_imp, +count), y = count, fill = `Study design`)) + 
+    geom_col(width=1, color="#00000099") + 
+    guides(fill=guide_legend(nrow=3, title.position = "top")) +
+    coord_flip(expand = F, ylim=c(0,79)) + 
     #theme_eai +       
     scale_fill_tableau() + 
     theme_light() +
@@ -708,14 +724,35 @@ p4 <- plot_dat_4 %>%
     #scale_fill_manual(values=c("#BD8C58", "#597787")) +
     xlab("Empathy Definiton Implemented") +
     #coord_cartesian(expand = F) + 
-    coord_flip(expand = F) + 
-    facet_wrap( ~ `Study focus`)
+    facet_wrap( ~ `Study focus`) +
+  geom_hline(yintercept=0, color="#00000099") +
+  labs(subtitle="Definiton implemented")
 ```
 
 ## Putting the figures into 1 figure at last 
 
-```{r}
-figure = ggarrange(p1, p2, p3, p4, ncol = 2, nrow = 2, common.legend = F) + theme_light()
+```{r main_annotation,fig.width=5, dpi=300, fig.height=3}
+theme_update <- theme_minimal() +
+  theme(
+    legend.position="top",
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.line = element_line(color="#00000099"),
+    panel.spacing=unit(0,"lines"),
+    legend.key.size = unit(0.3, "cm"),
+    legend.justification = "left",
+    legend.margin = margin(0,0,0,0,"lines"),
+    axis.title.y = element_blank(),
+    plot.margin = margin(0,0,0,0,"pt")
+  )
+
+p1 <- p1 + theme_update + theme(plot.subtitle = element_text(hjust=-0.38, vjust=-30))
+p2 <- p2 + theme_update + theme(plot.subtitle = element_text(hjust=-1.04, vjust=-40))
+p3 <- p3 + theme_update + theme(plot.subtitle = element_text(hjust=-0.55, vjust=-30))
+p4 <- p4 + theme_update + theme(plot.subtitle = element_text(hjust=-0.93, vjust=-40))
+figure = ggarrange(p1, p2, p3, p4, ncol = 2, nrow = 2, common.legend = F) + theme(plot.margin = margin(0,0,0,20,"pt"))
+ggsave("../figures/main_annotation.png", figure, units="in", dpi=300,width=9, height=4.5)
 figure
 ```
 
