@@ -12,6 +12,9 @@ theme_eai <- theme_classic() +
   theme(axis.text.y=element_blank(),
         panel.grid=element_blank(),
         axis.title.x=element_text(hjust=-0.15))
+
+scale_fill_tableau()
+
 ```
 
 ```{r}
