@@ -98,13 +98,6 @@ articles_coded_long =
 unique(articles_coded$def_imp)
 ```
 
-```{r}
-Application space x embodiment (Human robot)
-Measurement method x study design (Human_Robot)
-Study design x Empathy Implementation (Human Robot)
-Empathy Domain x Approach 
-```
-
 
 ```{r}
 articles_coded_long = 
@@ -139,19 +132,6 @@ articles_coded_long %>%
     ylab("Articles") + 
     scale_fill_manual(values=c("#BD8C58", "#597787")) +
     xlab("Country")
-  
-def_imp_count =  articles_coded_long %>% 
-                      mutate(value = as.numeric(value)) %>%  
-                      group_by(name) %>% 
-                      summarise(count = sum(value, na.rm = T)) %>% 
-                      arrange(desc(count))
-
-def_imp_count %>%
-  ggplot(., aes(x = reorder(name, +count), y = count, fill = count)) + geom_col(show.legend = FALSE) + 
-  coord_flip() +
-  theme_minimal() +           
-  ylab("Count") + 
-  xlab("Definition Implemented")
 ```
 
 ```{r}
@@ -477,7 +457,7 @@ theme_eai <- theme_classic() + theme(axis.text.y=element_blank(),
         panel.grid=element_blank(),
         axis.title.x=element_text(hjust=-0.15))
 
-scale_fill_tableau()
+#scale_fill_tableau()
 ```
 
 ## Application space x embodiment (Human robot)  - Plot 
@@ -967,7 +947,7 @@ app_space_long =
 app_space_count =  app_space_long %>% 
                       mutate(value = as.numeric(value)) %>%  
                       group_by(name) %>% 
-                      summarize(count = sum(value, na.rm = T)) %>% 
+                      summarise(count = sum(value, na.rm = T)) %>% 
                       arrange(desc(count))
 
 app_space_count %>%
@@ -1169,11 +1149,16 @@ approach_count_facet %>%
 
 ```{r}
 p <- articles_coded %>%
-  ggplot( aes(x=citations)) +
+  ggplot( aes(x=Citations)) +
     geom_histogram(fill = "cornflowerblue", alpha=0.6, position = 'identity') +
     theme_light()
 
 p
 ```
+
+
+
+
+
 
 
