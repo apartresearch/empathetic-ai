@@ -728,13 +728,14 @@ theme_update <- theme_minimal() +
     legend.justification = "left",
     legend.margin = margin(0,0,0,0,"lines"),
     axis.title.y = element_blank(),
-    plot.margin = margin(0,0,0,0,"pt")
+    plot.margin = margin(0,0,0,0,"pt"),
+    strip.text.x = element_text(hjust = 0, margin=margin(l=0, b=1)),
   )
 
-p1 <- p1 + theme_update + theme(plot.subtitle = element_text(hjust=-0.38, vjust=-30))
-p2 <- p2 + theme_update + theme(plot.subtitle = element_text(hjust=-1.04, vjust=-40))
-p3 <- p3 + theme_update + theme(plot.subtitle = element_text(hjust=-0.55, vjust=-30))
-p4 <- p4 + theme_update + theme(plot.subtitle = element_text(hjust=-0.93, vjust=-40))
+p1 <- p1 + theme_update + theme(plot.subtitle = element_text(hjust=-0.38, vjust=-22.5))
+p2 <- p2 + theme_update + theme(plot.subtitle = element_text(hjust=-1.04, vjust=-26))
+p3 <- p3 + theme_update + theme(plot.subtitle = element_text(hjust=-0.55, vjust=-23))
+p4 <- p4 + theme_update + theme(plot.subtitle = element_text(hjust=-0.93, vjust=-26))
 figure = ggarrange(p1, p2, p3, p4, ncol = 2, nrow = 2, common.legend = F) + theme(plot.margin = margin(0,0,0,20,"pt"))
 ggsave("../figures/main_annotation.png", figure, units="in", dpi=300,width=9, height=4.5)
 figure
