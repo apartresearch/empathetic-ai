@@ -8,6 +8,8 @@ output:
     toc: true
 ---
 
+### Loading Packages
+
 ```{r}
 pacman::p_load(tidyverse, 
                stringr,
@@ -28,9 +30,11 @@ pacman::p_load(tidyverse,
                )
 ```
 
+### Loading Data
+
 ```{r}
-articles_coded <- read_sheet("https://docs.google.com/spreadsheets/d/1Xufv1kIKV7AhOCPYXZ9HPFjeb5uUGh8Dm8Jd9zVNg2c/edit#gid=1728518595",
-                             sheet = "EXTRACTION OF ARTICLE CODING ")
+#articles_coded <- read_sheet("https://docs.google.com/spreadsheets/d/1Xufv1kIKV7AhOCPYXZ9HPFjeb5uUGh8Dm8Jd9zVNg2c/edit#gid=1728518595",
+ #                            sheet = "EXTRACTION OF ARTICLE CODING ")
 
 articles_coded = articles_coded %>% rename("year" = "Year")
 ```
@@ -610,8 +614,8 @@ plot_dat_3 =
     select(1:3, 6) %>%
     mutate(
     GOFAI = paste0(str_count(approach, "GOFAI")),
-    Cognitive_model = paste0(str_count(approach, "Cognitive model")),
-    Machine_learning = paste0(str_count(approach, "Machine learning")),
+    "Cognitive model" = paste0(str_count(approach, "Cognitive model")),
+    "Machine learning" = paste0(str_count(approach, "Machine learning")),
     Prerecorded = paste0(str_count(approach, "Prerecorded"))) %>% 
     pivot_longer(., 5:8) %>% 
     mutate(approach = ifelse(value == 1, name, NA)) %>% 
@@ -663,7 +667,7 @@ plot_dat_4 =
     "Social Interaction" = paste0(str_count(study_design, "Social interaction")),
     "Machine Learning" = paste0(str_count(study_design, "Machine learning")),
     Visual = paste0(str_count(study_design, "Visual")),
-    "Behaviour Model" = paste0(str_count(study_design, "Behaviour model"))) %>% 
+    "Behavior model" = paste0(str_count(study_design, "Behaviour model"))) %>% 
     pivot_longer(., 4:9) %>% 
     mutate(study_design = ifelse(value == 1, name, NA)) %>% 
     drop_na() %>%
@@ -748,10 +752,26 @@ topic_counts <- articles_coded %>%
                    group_by(Topic, year) %>% 
                    summarise(count = n()) 
 
+theme_update_2 <- theme_minimal() +
+  theme(
+    legend.position="top",
+    #panel.grid.minor = element_blank(),
+    #panel.grid.major.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.line = element_line(color="#00000099"),
+    panel.spacing=unit(0,"lines"),
+    legend.key.size = unit(0.3, "cm"),
+    legend.justification = "left",
+    legend.margin = margin(0,0,0,0,"lines"),
+    axis.title.y = element_blank(),
+    plot.margin = margin(0,0,0,0,"pt")
+  )
+
 ggplot(topic_counts, aes(fill=Topic, y=count, x=year)) + 
     geom_bar(position="stack", stat="identity") + 
-    coord_flip() +
-    scale_fill_tableau()
+    #coord_flip() +
+    scale_fill_tableau() + 
+    theme_update_2
 
 
 ```
@@ -1083,7 +1103,7 @@ write_csv(app_datawrapper_prop, "app_datawrapper_prop.csv")
 ### Approach and Empathy Plot
 
 ```{r}
-emp_app_long <- articles_coded %>% 
+emp_app_long <- articles_coded %>% view()
     summarise(
     year = year,
     country = country,
@@ -1156,8 +1176,94 @@ p <- articles_coded %>%
 p
 ```
 
+### Researchers per article plot
 
+```{r}
+getwd()
+researcher_data <- read_delim("../articles/researcher_data.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
 
+data_split <- str_split_fixed(researcher_data$Author_New, ';', n = 12)
+data_split <- as.data.frame(data_split)
+data_split$year = researcher_data$Publication_Year
+
+data_split2 = data_split %>% 
+      pivot_longer(1:12) %>%
+      select(1,3) %>% 
+      mutate(value2 = ifelse(value == "", NA, value)) %>% 
+      drop_na()
+
+### Removing white space in front of each name
+
+data_trim = data.frame()
+
+for (row in 1:length(data_split2$year)) {
+    data_trim[row, 1] = trimws(data_split2$value2[row])
+      }
+
+data_split2$Name_Clean <- data_trim$V1
+```
+
+### Articles per Resarcher plot
+
+```{r}
+APP <- data_split2 %>% 
+      group_by(Name_Clean) %>% 
+      summarise(Count_Researcher = n()) %>%
+      ggplot(aes(x = Count_Researcher)) +
+      geom_bar(fill = "#597787") +
+      theme_light() +
+      xlab("Articles Per Researcher") +
+      ylab("Count")
+      
+### Making arrows for the plot
+
+arrows <- 
+  tibble(
+    x1 = c(4, 4),
+    x2 = c(5, 5),
+    y1 = c(400, 300), 
+    y2 = c(75, 25)
+  )
+
+### Adding arrows to plot and annotating
+
+APP + geom_curve(
+    data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2),
+    arrow = arrow(length = unit(0.08, "inch")), size = 0.5,
+    color = "gray20", curvature = -0.3) +
+      annotate("text", x = 3.6, y = 400, label = "Tomio Watanabe", size = 3) +
+      annotate("text", x = 3.6, y = 300, label = "Hiroshi Ishiguro", size = 3) 
+
+```
+
+### Researchers per article plot
+
+```{r}
+RPA_Plot <- researcher_data %>% 
+            mutate(count_researchers = str_count(.$Author_New, pattern = ";")+ 1 ) %>%
+            ggplot(aes(x = count_researchers)) +
+            geom_bar(fill = "#597787") +
+            theme_light() +
+            xlab("Researchers Per Article") +
+            ylab("Count") +
+            scale_x_continuous(breaks = c(1:12))
+  
+RPA_Plot
+```
+
+### Citations per article plot
+
+```{r}
+p <- articles_coded %>%
+  ggplot( aes(x = Citations)) +
+    geom_density(fill = "#597787", color = "#597787") +
+    theme_light() +
+    xlab("Citations per article") +
+    ylab("Density")
+
+p
+```
 
 
 
