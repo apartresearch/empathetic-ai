@@ -256,7 +256,73 @@ emp_dom_count %>%
 ```
 ```{r}
 emp_dom_count
+
 ```
+### Country Plot 
+
+```{r}
+Emp_dom_Per_Country <- articles_coded %>%
+      summarise(
+      year = year,
+      country = country,
+      "Embodied cues" = paste0(str_count(emp_dom, "Embodied cues")),
+       Language = paste0(str_count(emp_dom, "Language")),
+      "Social behavior" = paste0(str_count(emp_dom, "Social behavior")),
+      "Facial expression" = paste0(str_count(emp_dom, "Facial expression")),
+      Embodiment = paste0(str_count(emp_dom, "Embodiment")),
+      Prosociality = paste0(str_count(emp_dom, "Prosociality"))) %>% 
+      pivot_longer(., 3:8) %>% 
+      mutate(emp_dom = ifelse(value == 1, name, NA)) %>% 
+      drop_na() %>% 
+      select(1:2, 5) %>% 
+      mutate(
+      ID = paste0(str_count(country, "ID")),
+      PT = paste0(str_count(country, "PT")),
+      CN = paste0(str_count(country, "CN")),
+      UK = paste0(str_count(country, "UK")),
+      DE = paste0(str_count(country, "DE")),
+      US = paste0(str_count(country, "US")),
+      IR = paste0(str_count(country, "IR")),
+      MX = paste0(str_count(country, "MX")),
+      HK = paste0(str_count(country, "HK")),
+      ES = paste0(str_count(country, "ES")),
+      IT = paste0(str_count(country, "IT")),
+      EU = paste0(str_count(country, "EU")),
+      IL = paste0(str_count(country, "IL")),
+      CH = paste0(str_count(country, "CH")),
+      NZ = paste0(str_count(country, "NZ")),
+      PL = paste0(str_count(country, "PL")),
+      FR = paste0(str_count(country, "FR")),
+      TH = paste0(str_count(country, "TH")),
+      SE = paste0(str_count(country, "SE")),
+      SA = paste0(str_count(country, "SA")),
+      PK = paste0(str_count(country, "PK")),
+      BR = paste0(str_count(country, "BR")),
+      MY = paste0(str_count(country, "MY")),
+      AU = paste0(str_count(country, "AU")),
+      JP = paste0(str_count(country, "JP")),
+      BE = paste0(str_count(country, "BE")),
+      NL = paste0(str_count(country, "NL")),
+      KR = paste0(str_count(country, "KR")),
+      SG = paste0(str_count(country, "SG")),
+      SK = paste0(str_count(country, "SK")),
+      TR = paste0(str_count(country, "TR")),
+      CA = paste0(str_count(country, "CA")),
+      IN = paste0(str_count(country, "IN")),
+      PT = paste0(str_count(country, "BE")),
+      RO = paste0(str_count(country, "RO")),
+      IE = paste0(str_count(country, "IE")),
+      TW = paste0(str_count(country, "TW")),
+      DK = paste0(str_count(country, "DK")),
+      GB = paste0(str_count(country, "GB"))) %>% 
+      pivot_longer(., 4:41) %>% 
+      mutate(value = as.numeric(value)) %>% 
+      group_by(name) %>% 
+      summarise(count = sum(value, na.rm = T)) %>% 
+      rename("Country" = "name") %>% view()
+
+```
+
 
 ### Empathy domain per Country plot
 
@@ -316,7 +382,7 @@ Emp_dom_Per_Country <- articles_coded %>%
       DK = paste0(str_count(country, "DK")),
       GB = paste0(str_count(country, "GB"))) %>% 
       pivot_longer(., 4:41) %>% 
-      mutate(value = as.numeric(value)) %>% 
+      mutate(value = as.numeric(value)) %>% view()
       group_by(name, emp_dom) %>% 
       summarise(count = sum(value, na.rm = T)) %>% 
       arrange(desc(count)) %>% 
@@ -1256,14 +1322,34 @@ RPA_Plot
 ### Citations per article plot
 
 ```{r}
+
+median_citations <- median(articles_coded$Citations, na.rm = T)
+
 p <- articles_coded %>%
-  ggplot( aes(x = Citations)) +
+    ggplot( aes(x = Citations)) +
     geom_density(fill = "#597787", color = "#597787") +
     theme_light() +
     xlab("Citations per article") +
-    ylab("Density")
+    ylab("Density") + 
+    xlim(0,100) + 
+    geom_vline(xintercept=median_citations, size=1, color="black")+
+    geom_text(aes(x=median_citations+7, label=paste0("Median: ",median_citations), y=0.08))
 
 p
+```
+
+### Citations per year plot
+
+```{r}
+p_cit <- articles_coded %>%
+    group_by(year) %>% 
+    summarise(Citations_Count = sum(Citations, na.rm = T)) %>% 
+    ggplot( aes(x = year, y = Citations_Count)) +
+    geom_col(fill = 'cornflowerblue') +
+    theme_light()
+p_cit
+
+
 ```
 
 
