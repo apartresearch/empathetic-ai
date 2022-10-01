@@ -716,6 +716,8 @@ p3 <- plot_dat_3 %>%
     theme_light() +
   geom_hline(yintercept=0, color="#00000099") +
   labs(subtitle="Empathy domain")
+
+p3
    
 ```
 
@@ -811,38 +813,6 @@ figure
 ```{r}
 unique(articles_coded$Domain)
 ```
-
-## Clustering visualization
-
-```{r}
-topic_counts <- articles_coded %>% 
-                   group_by(Topic, year) %>% 
-                   summarise(count = n()) 
-
-theme_update_2 <- theme_minimal() +
-  theme(
-    legend.position="top",
-    #panel.grid.minor = element_blank(),
-    #panel.grid.major.y = element_blank(),
-    axis.title.x = element_blank(),
-    axis.line = element_line(color="#00000099"),
-    panel.spacing=unit(0,"lines"),
-    legend.key.size = unit(0.3, "cm"),
-    legend.justification = "left",
-    legend.margin = margin(0,0,0,0,"lines"),
-    axis.title.y = element_blank(),
-    plot.margin = margin(0,0,0,0,"pt")
-  )
-
-ggplot(topic_counts, aes(fill=Topic, y=count, x=year)) + 
-    geom_bar(position="stack", stat="identity") + 
-    #coord_flip() +
-    scale_fill_tableau() + 
-    theme_update_2
-
-
-```
-
 
 ### Measurement method Plot
 
@@ -1308,7 +1278,7 @@ APP + geom_curve(
 
 ```{r}
 RPA_Plot <- researcher_data %>% 
-            mutate(count_researchers = str_count(.$Author_New, pattern = ";")+ 1 ) %>%
+            mutate(count_researchers = str_count(.$Author_New, pattern = ";")+ 1 ) %>% 
             ggplot(aes(x = count_researchers)) +
             geom_bar(fill = "#597787") +
             theme_light() +
@@ -1316,8 +1286,19 @@ RPA_Plot <- researcher_data %>%
             ylab("Count") +
             scale_x_continuous(breaks = c(1:12))
   
+
 RPA_Plot
 ```
+
+```{r}
+researcher_data1 <- researcher_data %>% 
+            mutate(count_researchers = str_count(.$Author_New, pattern = ";")+ 1 ) 
+
+
+researcher_data1 %>% 
+            summarise(mean(count_researchers))
+```
+
 
 ### Citations per article plot
 
@@ -1343,7 +1324,7 @@ p
 ```{r}
 p_cit <- articles_coded %>%
     group_by(year) %>% 
-    summarise(Citations_Count = sum(Citations, na.rm = T)) %>% 
+    summarise(Citations_Count = mean(Citations, na.rm = T)) %>% 
     ggplot( aes(x = year, y = Citations_Count)) +
     geom_col(fill = 'cornflowerblue') +
     theme_light()
@@ -1352,6 +1333,76 @@ p_cit
 
 ```
 
+## Clustering visualization
+
+```{r}
+topic_counts <- articles_coded %>% 
+                   group_by(Topic, year) %>% 
+                   summarise(count = n())
+
+theme_update_2 <- theme_minimal() +
+  theme(
+    legend.position="top",
+    #panel.grid.minor = element_blank(),
+    #panel.grid.major.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.line = element_line(color="#00000099"),
+    panel.spacing=unit(0,"lines"),
+    legend.key.size = unit(0.3, "cm"),
+    legend.justification = "left",
+    legend.margin = margin(0,0,0,0,"lines"),
+    axis.title.y = element_blank(),
+    plot.margin = margin(0,0,0,0,"pt")
+  )
+
+ggplot(topic_counts, aes(fill=Topic, y=count, x=year)) + 
+    geom_bar(position="stack", stat="identity") + 
+    #coord_flip() +
+    scale_fill_tableau() + 
+    theme_update_2
+
+
+```
+
+## Clustering visualization Summing to 100%
+
+```{r}
+topic_counts <- articles_coded %>% 
+                   group_by(Topic, year) %>% 
+                   summarise(count = n())
+topic_PY_counts <- articles_coded %>% 
+                   group_by(year) %>% 
+                   summarise(count_year = n())
+                
+
+topic_tot <- left_join(topic_counts, topic_PY_counts)
+
+topic_tot <- topic_tot %>% 
+             mutate(percentage = (count/count_year)*100)
+
+theme_update_2 <- theme_minimal() +
+  theme(
+    legend.position="top",
+    #panel.grid.minor = element_blank(),
+    #panel.grid.major.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.line = element_line(color="#00000099"),
+    panel.spacing=unit(0,"lines"),
+    legend.key.size = unit(0.3, "cm"),
+    legend.justification = "left",
+    legend.margin = margin(0,0,0,0,"lines"),
+    axis.title.y = element_blank(),
+    plot.margin = margin(0,0,0,0,"pt")
+  )
+
+ggplot(topic_tot, aes(fill=Topic, y=percentage, x=year)) + 
+    geom_bar(position="stack", stat="identity") + 
+    #coord_flip() +
+    scale_fill_tableau() + 
+    theme_update_2
+
+
+```
 
 
 
