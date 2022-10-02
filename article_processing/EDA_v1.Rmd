@@ -601,6 +601,54 @@ p1 <- plot_dat_1 %>%
 unique(articles_coded$measurement_method)
 ```
 
+### Getting stats from measurement methods
+
+```{r}
+MM_Stat <- articles_coded %>%
+    summarise(
+    year = year,
+    study_design = study_design,
+    robot_human,
+    "Machine Learning" = paste0(str_count(measurement_method, "Machine learning")),
+    "Physiological Behaviour" = paste0(str_count(measurement_method, "Physiological behaviour")),
+    Interview = paste0(str_count(measurement_method, "Interview")),
+    "Cognitive Test" = paste0(str_count(measurement_method, "Cognitive Test")),
+    "Human Behvaiour" = paste0(str_count(measurement_method, "Human behaviour"))) %>% 
+    pivot_longer(., 4:8) %>%
+    mutate(measurement_method = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>% 
+    select(1:3, 6) %>% 
+    mutate(
+    Pain = paste0(str_count(study_design, "Pain")),
+    Game = paste0(str_count(study_design, "Game")),
+    "Social Interaction" = paste0(str_count(study_design, "Social interaction")),
+    "Machine Learning" = paste0(str_count(study_design, "Machine learning")),
+    Visual = paste0(str_count(study_design, "Visual")),
+    "Behaviour Model" = paste0(str_count(study_design, "Behaviour model"))) %>% 
+    pivot_longer(., 5:10) %>% 
+    mutate(study_design = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>% 
+    select(1:4) %>% 
+    mutate(
+    Robot = paste0(str_count(robot_human, "R")),
+    Human = paste0(str_count(robot_human, "h"))) %>%
+    pivot_longer(., 5:6) %>% 
+    mutate(robot_human = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>%
+    mutate(value = as.numeric(value)) %>% 
+    group_by(measurement_method) %>% 
+    summarise(count = sum(value, na.rm = T)) %>% 
+    arrange(desc(count)) %>%
+    rename("Measurement Method" = "measurement_method")
+
+MM_Stat <- MM_Stat %>% 
+            mutate(total = sum(count),
+                   perc_app = (count/total)*100)
+
+head(MM_Stat)
+
+```
+
 
 ```{r}
 plot_dat_2 = 
@@ -662,6 +710,52 @@ p2 <- plot_dat_2 %>%
 ```
 
 ## Empathy Domain x Approach (Human_Robot) - Plot
+
+### First getting approach statistics
+
+```{r}
+app_stat <- articles_coded %>%
+    summarise(
+    year = year,
+    approach = approach,
+    robot_human,
+    Language = paste0(str_count(emp_dom, "Language")),
+    "Embodied cues" = paste0(str_count(emp_dom, "Embodied cues")),
+    "Social behavior" = paste0(str_count(emp_dom, "Social behavior")),
+    "Facial expression" = paste0(str_count(emp_dom, "Facial expression"))) %>% 
+    pivot_longer(., 4:7) %>%
+    mutate(emp_dom = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>% 
+    select(1:3, 6) %>%
+    mutate(
+    GOFAI = paste0(str_count(approach, "GOFAI")),
+    "Cognitive model" = paste0(str_count(approach, "Cognitive model")),
+    "Machine learning" = paste0(str_count(approach, "Machine learning")),
+    Prerecorded = paste0(str_count(approach, "Prerecorded"))) %>% 
+    pivot_longer(., 5:8) %>% 
+    mutate(approach = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>% 
+    select(1:4) %>%   
+    mutate(
+    Robot = paste0(str_count(robot_human, "R")),
+    Human = paste0(str_count(robot_human, "h"))) %>%
+    pivot_longer(., 5:6) %>% 
+    mutate(robot_human = ifelse(value == 1, name, NA)) %>% 
+    drop_na() %>%
+    mutate(value = as.numeric(value)) %>% 
+    group_by(approach) %>% 
+    summarise(count = sum(value, na.rm = T)) %>% 
+    arrange(desc(count)) %>%
+    rename("Approach" = "approach")  
+
+app_stat <- app_stat %>% 
+            mutate(total = sum(count),
+                   perc_app = (count/total)*100)
+
+head(app_stat)
+```
+
+### Making the plot
 
 ```{r}
 plot_dat_3 = 
