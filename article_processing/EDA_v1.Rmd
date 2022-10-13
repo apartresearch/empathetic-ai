@@ -33,8 +33,9 @@ pacman::p_load(tidyverse,
 ### Loading Data
 
 ```{r}
-#articles_coded <- read_sheet("https://docs.google.com/spreadsheets/d/1Xufv1kIKV7AhOCPYXZ9HPFjeb5uUGh8Dm8Jd9zVNg2c/edit#gid=1728518595",
- #                            sheet = "EXTRACTION OF ARTICLE CODING ")
+library(googlesheets4)
+articles_coded <- read_sheet("https://docs.google.com/spreadsheets/d/1Xufv1kIKV7AhOCPYXZ9HPFjeb5uUGh8Dm8Jd9zVNg2c/edit#gid=1728518595",
+                            sheet = "EXTRACTION OF ARTICLE CODING ")
 
 articles_coded = articles_coded %>% rename("year" = "Year")
 ```
@@ -592,7 +593,7 @@ p1 <- plot_dat_1 %>%
     theme_light() +
   geom_hline(yintercept=0, color="#00000099") +
   labs(subtitle="Embodiment")
-   
+
 ```
 
 ## Measurement method x study design (Human_Robot) - Plot 
@@ -1298,11 +1299,34 @@ approach_count_facet %>%
 
 ### Citations plot
 
+theme
 ```{r}
+theme_eai <- theme_classic() +
+  theme(panel.grid=element_blank(),)
+tableau_pal = (ggthemes_data$tableau$`color-palettes`$regular$`Tableau 10`["value"] %>% as.list)$value
+```
+
+
+```{r, fig.width=1, fig.height=1}
+arrows <- 
+  tibble(
+    x1 = c(250),
+    x2 = c(300),
+    y1 = c(50), 
+    y2 = c(5)
+  )
+
 p <- articles_coded %>%
   ggplot( aes(x=Citations)) +
-    geom_histogram(fill = "cornflowerblue", alpha=0.6, position = 'identity') +
-    theme_light()
+    geom_histogram(fill = tableau_pal[1], alpha=0.3, color=tableau_pal[1], position = 'identity', binwidth = 20) +
+    theme_eai +
+  coord_cartesian(expand=F) +
+  labs(y=NULL, x="Citations (median = 3)") +
+  geom_curve(
+    data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2),
+    arrow = arrow(length = unit(0.08, "cm")), size = 0.5,
+    color = "gray20", curvature = -0.3) +
+  annotate("text", x = 200, y = 75, label = "\"A New Chatbot for\nCustomer Service\non Social Media\"\n299 citations", size = 3)
 
 p
 ```
@@ -1337,24 +1361,27 @@ data_split2$Name_Clean <- data_trim$V1
 
 ### Articles per Resarcher plot
 
-```{r}
+```{r, fig.height=1, fig.width=1}
 APP <- data_split2 %>% 
-      group_by(Name_Clean) %>% 
-      summarise(Count_Researcher = n()) %>%
-      ggplot(aes(x = Count_Researcher)) +
-      geom_bar(fill = "#597787") +
-      theme_light() +
-      xlab("Articles Per Researcher") +
-      ylab("Count")
-      
+  group_by(Name_Clean) %>% 
+  summarise(Count_Researcher = n()) %>%
+  ggplot(aes(x = Count_Researcher)) +
+  geom_bar(fill= tableau_pal[1], alpha=0.4, color=tableau_pal[1], width=1) +
+  theme_light() +
+  xlab("Articles Per Researcher") +
+  ylab(NULL) +
+  coord_cartesian(expand=F, clip="off") +
+  theme_eai
+
+
 ### Making arrows for the plot
 
 arrows <- 
   tibble(
-    x1 = c(4, 4),
+    x1 = c(4.7, 4.7),
     x2 = c(5, 5),
-    y1 = c(400, 300), 
-    y2 = c(75, 25)
+    y1 = c(400, 350), 
+    y2 = c(25, 25)
   )
 
 ### Adding arrows to plot and annotating
@@ -1363,22 +1390,24 @@ APP + geom_curve(
     data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2),
     arrow = arrow(length = unit(0.08, "inch")), size = 0.5,
     color = "gray20", curvature = -0.3) +
-      annotate("text", x = 3.6, y = 400, label = "Tomio Watanabe", size = 3) +
-      annotate("text", x = 3.6, y = 300, label = "Hiroshi Ishiguro", size = 3) 
+      annotate("text", x = 3.2, y = 400, label = "Tomio Watanabe", size = 3) +
+      annotate("text", x = 3.3, y = 350, label = "Hiroshi Ishiguro", size = 3) 
 
 ```
 
 ### Researchers per article plot
 
-```{r}
+```{r, fig.height=1, fig.width=1}
 RPA_Plot <- researcher_data %>% 
             mutate(count_researchers = str_count(.$Author_New, pattern = ";")+ 1 ) %>% 
             ggplot(aes(x = count_researchers)) +
-            geom_bar(fill = "#597787") +
+            geom_bar(fill = tableau_pal[1], alpha=0.4, color=tableau_pal[1], width=1) +
             theme_light() +
             xlab("Researchers Per Article") +
-            ylab("Count") +
-            scale_x_continuous(breaks = c(1:12))
+            ylab(NULL) +
+  scale_x_continuous(breaks=seq(1, 12, 2)) +
+  theme_eai +
+  coord_cartesian(expand=F, clip="off")
   
 
 RPA_Plot
@@ -1390,7 +1419,7 @@ researcher_data1 <- researcher_data %>%
 
 
 researcher_data1 %>% 
-            summarise(mean(count_researchers))
+            summarise(median(count_researchers))
 ```
 
 
@@ -1429,31 +1458,22 @@ p_cit
 
 ## Clustering visualization
 
-```{r}
+```{r, fig.height=1, fig.width=1.8}
 topic_counts <- articles_coded %>% 
                    group_by(Topic, year) %>% 
                    summarise(count = n())
 
 theme_update_2 <- theme_minimal() +
-  theme(
-    legend.position="top",
-    #panel.grid.minor = element_blank(),
-    #panel.grid.major.y = element_blank(),
-    axis.title.x = element_blank(),
-    axis.line = element_line(color="#00000099"),
-    panel.spacing=unit(0,"lines"),
-    legend.key.size = unit(0.3, "cm"),
-    legend.justification = "left",
-    legend.margin = margin(0,0,0,0,"lines"),
-    axis.title.y = element_blank(),
-    plot.margin = margin(0,0,0,0,"pt")
-  )
+  theme_eai
 
-ggplot(topic_counts, aes(fill=Topic, y=count, x=year)) + 
-    geom_bar(position="stack", stat="identity") + 
+ggplot(topic_counts, aes(fill=Topic, color=Topic, y=count, x=year)) + 
+    geom_bar(position="stack", stat="identity", alpha=0.4, width=1) + 
     #coord_flip() +
     scale_fill_tableau() + 
-    theme_update_2
+  scale_color_tableau() +
+    theme_update_2 +
+  coord_cartesian(expand=F, clip="off") +
+  labs(y=NULL, x="Year")
 
 
 ```
