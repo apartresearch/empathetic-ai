@@ -1,5 +1,5 @@
 pacman::p_load(tidyverse, lubridate, bibliometrix, stringr, bibtex)
-setwd(dirname(parent.frame(2)$ofile))
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 ###############################################################################
 # Remove the ScienceDirect keyword-only matches
@@ -83,15 +83,23 @@ changeLog[5] <- nrow(df)
 
 ###############################################################################
 # Filter for page count
+df_progess <- df %>% 
+  mutate(Pages = ifelse(Pages == "i", NA, 
+                        ifelse(Pages == "eabj5425", NA,
+                               ifelse(Pages == "e837", NA, Pages))))
+df <- df_progess %>% # I HAD A PROBLEM WITH TWO DIFFERENT TYPE OF HYPHENS "-" and "–", HERE I MAKE SURE NO ONE PAGED DOCUMNETS ARE IN DF
+  mutate(Pages = str_replace(Pages, "–", "-"),
+         count_one_pagers = paste0(str_count(Pages, "-"))) %>% 
+  filter(count_one_pagers != 0)
 
-df <- str_split(df$Pages, "\\D") %>% as_tibble(.name_repair = "unique") %>% t %>% as_tibble %>% rename(Page1 = V1, Page2 = V2) %>% cbind(df) %>%
+df <- str_split(df$Pages, "-") %>% as_tibble(.name_repair = "unique") %>% t %>% as_tibble %>% rename(Page1 = V1, Page2 = V2) %>% cbind(df) %>%
   mutate(
     `Num Pages` = if_else(Title %in% c("Empathic Chatbot Response for Medical Assistance",
                                        "Empathy in Middle School Engineering Design Process",
                                        "Akibot: A Telepresence Robot for Medical Teleconsultation",
                                        'Getting Virtually Personal: Making Responsible and Empathetic "Her" for Everyone',
                                        "Breathing expression for intimate communication corresponding to the physical distance and contact between human and robot"), 
-                          3, as.numeric(Page2) - as.numeric(Page1) + 1)) %>% 
+                          3, as.numeric(Page2) - as.numeric(Page1) + 1)) %>%
   filter(if_else(is.na(`Num Pages`), TRUE, `Num Pages` > 4))
 
 changeLog[6] <- nrow(df)

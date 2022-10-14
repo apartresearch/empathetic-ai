@@ -34,6 +34,7 @@ pacman::p_load(tidyverse,
 
 ```{r}
 library(googlesheets4)
+gs4_deauth()
 articles_coded <- read_sheet("https://docs.google.com/spreadsheets/d/1Xufv1kIKV7AhOCPYXZ9HPFjeb5uUGh8Dm8Jd9zVNg2c/edit#gid=1728518595",
                             sheet = "EXTRACTION OF ARTICLE CODING ")
 
@@ -383,7 +384,7 @@ Emp_dom_Per_Country <- articles_coded %>%
       DK = paste0(str_count(country, "DK")),
       GB = paste0(str_count(country, "GB"))) %>% 
       pivot_longer(., 4:41) %>% 
-      mutate(value = as.numeric(value)) %>% view()
+      mutate(value = as.numeric(value)) %>%
       group_by(name, emp_dom) %>% 
       summarise(count = sum(value, na.rm = T)) %>% 
       arrange(desc(count)) %>% 
@@ -593,7 +594,7 @@ p1 <- plot_dat_1 %>%
     theme_light() +
   geom_hline(yintercept=0, color="#00000099") +
   labs(subtitle="Embodiment")
-
+   
 ```
 
 ## Measurement method x study design (Human_Robot) - Plot 
@@ -1235,7 +1236,7 @@ write_csv(app_datawrapper_prop, "app_datawrapper_prop.csv")
 ### Approach and Empathy Plot
 
 ```{r}
-emp_app_long <- articles_coded %>% view()
+emp_app_long <- articles_coded %>%
     summarise(
     year = year,
     country = country,
